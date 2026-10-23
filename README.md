@@ -68,7 +68,7 @@ Push the app and workflows to `main`; the APK will appear under **Releases** aft
 
 ### Build/test Android entirely on your own machine
 
-On Linux/macOS (or WSL), install **JDK 21** and the Android SDK, set `ANDROID_HOME`, and install SDK packages `platforms;android-37`, `build-tools;37.0.0`, `platform-tools`, `ndk;27.1.12297006`, and `cmake;3.22.1`. Accept the SDK licenses with `sdkmanager --licenses`.
+On Linux/macOS (or WSL), install **JDK 21** and the current Android SDK command-line tools, set `ANDROID_HOME`, and install SDK packages `platforms;android-37.0`, `build-tools;37.0.0`, `platform-tools`, `ndk;27.1.12297006`, and `cmake;3.22.1`. Accept the SDK licenses with `sdkmanager --licenses`.
 
 ```sh
 npm run setup:android-signing
