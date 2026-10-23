@@ -41,3 +41,12 @@ example
 # generated native folders
 /ios
 /android
+
+# Signing credentials and test artifacts
+credentials.json
+*.keystore
+*.apk
+test-results/
+playwright-report/
+.signing/
+*.idsig

@@ -1,56 +1,96 @@
-# Welcome to your Expo app 👋
+# Timerlist
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+A timer app for Android, iOS, and the browser, styled with **NativeWind**. The list, circular controls, and Time / Repeat / Color / Tone editor follow the reference screenshots.
 
-## Get started
+## What it does
 
-1. Install dependencies
+- Create, edit, duplicate, and delete labelled timers.
+- Run and pause several timers independently.
+- Pause, resume, reset, and restart completed timers.
+- Choose from 20 colors and three locally bundled alarm sounds; preview sounds, mute, or enable vibration.
+- Run a timer **1–99 times total**, with automatic next rounds and an alert at every boundary.
+- Reorder with accessible up/down controls, or sort by label/duration.
+- Save definitions, ordering, and running/paused state on the device. Reloading does not reset countdowns.
 
-   ```bash
-   npm install
-   ```
+Six example timers appear on first launch. Delete them to start with an empty library; an empty library stays empty.
 
-2. Start the app
+## Run
 
-   ```bash
-   npx expo start
-   ```
+Use Node.js 24 and npm.
 
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **src/app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
-
-```bash
-npm run reset-project
+```sh
+npm ci
+npm run web
 ```
 
-This command will move the starter code to the **example** directory and create a blank **src/app** directory where you can start developing.
+Open the terminal's URL (normally **http://localhost:8081**). The web version runs entirely on your machine. Project scripts disable Expo telemetry and use offline CLI mode; there is **no Expo login or hosted service** involved. npm still needs internet access to download dependencies initially.
 
-### Other setup steps
+Quick manual check: tap the small clock-plus button in the top bar, create a 5-second timer with 3 rounds, and press OK. Start it alongside another timer, pause/resume one, and listen for each round's alarm. Tap a label to edit it. Open the left-hand row icon for reset/delete, or the menu to reorder. Reload to check persistence. Keep the browser tab open for alarms.
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+For the full Android experience—including locked-screen alarms—install the standalone APK described below. The APK works offline and does not require Expo Go or a development server.
 
-## Learn more
+```sh
+npm run lint
+npm run typecheck
+npm test
+npx playwright install chromium
+npm run test:e2e
+```
 
-To learn more about developing your project with Expo, look at the following resources:
+The browser suite builds and tests the **production web export** in desktop and mobile Chromium, including actual audio playback, concurrent timers, repeat boundaries, persistence, editing, ordering, deletion, invalid data, and small-phone layout. Reports/screenshots are in `playwright-report/` and `test-results/` (gitignored). To use an existing Chrome installation, set `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` to its executable.
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+`npm run build:web` produces the static website in `dist/`.
 
-## Join the community
+## Automatic Android APK releases
 
-Join our community of developers creating universal apps.
+[`.github/workflows/release.yml`](.github/workflows/release.yml) runs on **every push to `main`**, or manually through Actions. It:
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+1. Runs lint, TypeScript, unit tests, and desktop/mobile browser tests.
+2. Sets version `1.0.<workflow run number>` and an increasing Android version code.
+3. Generates the native Android project **locally on the GitHub runner**, compiles it with Gradle, and signs/verifies the APK with the Android SDK tools.
+4. Creates a GitHub Release containing **`timerlist.apk`**, also available as an Actions artifact.
+
+Download releases at **https://github.com/Oudwins/timerlist/releases**. Once the first release exists, the stable download URL is **https://github.com/Oudwins/timerlist/releases/latest/download/timerlist.apk**. The APK does not need a development server. Android may ask you to allow installation from your browser.
+
+No Expo services, accounts, tokens, EAS projects, push services, or OTA updates are used. Expo remains an open-source framework/build dependency only. GitHub runners download npm, Maven, and Android SDK dependencies as needed.
+
+### One-time Android signing setup
+
+Android requires a persistent private signing key so a new APK can update an existing installation. With a JDK (`keytool`) and authenticated GitHub CLI installed, run once from the repository:
+
+```sh
+npm run setup:android-signing -- --github
+```
+
+This creates a private key in the gitignored **`.signing/android-signing.json`** file and stores it in the encrypted repository Actions secret **`ANDROID_SIGNING_KEY`**. It does not replace an existing GitHub signing secret. **Back up this file securely; never commit or share it.** A lost/replaced key means existing installations cannot update normally.
+
+Push the app and workflows to `main`; the APK will appear under **Releases** after the build finishes. Subsequent pushes release automatically. You do not need an Android SDK installed locally when using GitHub Actions. Actions must be enabled; the workflow uses GitHub's built-in token with `contents: write`, not a separate PAT. Pull requests run [checks](.github/workflows/check.yml) without release secrets.
+
+### Build/test Android entirely on your own machine
+
+On Linux/macOS (or WSL), install **JDK 21** and the Android SDK, set `ANDROID_HOME`, and install SDK packages `platforms;android-37`, `build-tools;37.0.0`, `platform-tools`, `ndk;27.1.12297006`, and `cmake;3.22.1`. Accept the SDK licenses with `sdkmanager --licenses`.
+
+```sh
+npm run setup:android-signing
+npm run build:android
+adb install -r timerlist.apk
+```
+
+Enable USB debugging and connect a phone (or start an emulator) for `adb install`. The resulting **`timerlist.apk`** is a standalone release build. `npm run android` instead builds/launches the local development version with Metro; it also requires the Android SDK. Keep generated `android/` files out of Git and change native configuration through `app.json` and config plugins only.
+
+To test background behavior, create a short timer, allow notification/exact-alarm permissions, lock the phone, and confirm it alerts. Also pause/reset/delete a running timer and confirm its old alert is cancelled. Use the same signing key locally and on GitHub if installing one build over the other.
+
+## Alarm behavior
+
+- **Android:** upcoming repeat alerts are scheduled with the operating system, including while the screen is locked or the app is backgrounded. Allow notification and exact-alarm permissions. `USE_EXACT_ALARM` is declared because timing is the app’s core purpose; Android 12 devices may still require an explicit grant. Pausing, resetting, editing, or deleting cancels the corresponding scheduled alerts.
+- **iOS:** the same local-notification mechanism is used, with the system limit of 64 pending alerts across the app. Longer sessions require keeping the app open; a warning is shown if the queue is exceeded. iOS builds/signing are not part of the Android release workflow.
+- **Browser:** keep the tab open and the device awake. Browsers can throttle or suspend tabs, so a website cannot guarantee locked-screen/background alarms. The app requests a screen wake lock where supported. Closed tabs cannot play sound; reopening reconciles elapsed rounds from their saved deadlines.
+- System volume, Do Not Disturb, battery restrictions, and force-stopping the app can affect native alerts. Use the app’s alarm settings to test sound and open system settings.
+
+Countdowns use wall-clock deadlines, not accumulated interval ticks, so delayed callbacks do not cause drift. Finite repeat schedules are queued in advance; no network connection, background polling service, or push notification account is needed. Data stays in local AsyncStorage; clearing app/site data removes it. Unreadable stored data is preserved rather than silently overwritten.
+
+## Assets and dependencies
+
+DM Sans and DM Mono are bundled under the SIL Open Font License (licenses in `assets/fonts/`). Timer sounds and app icons are generated locally by `node scripts/generate-assets.mjs` and bundled for offline use.
+
+Expo SDK 58 dependency compatibility is checked with `npx expo-doctor`. The dependency tree currently has upstream npm audit advisories affecting Metro/Expo and Tailwind build tooling. Avoid `npm audit fix --force`: its suggested SDK downgrades are incompatible with this project. Review compatible upstream fixes as they become available.

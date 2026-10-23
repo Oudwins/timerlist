@@ -1,0 +1,80 @@
+name: Android release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      EXPO_OFFLINE: '1'
+      EXPO_NO_TELEMETRY: '1'
+      ANDROID_BUILD_TOOLS_VERSION: '37.0.0'
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+      - name: Verify Android signing configuration
+        env:
+          ANDROID_SIGNING_KEY: ${{ secrets.ANDROID_SIGNING_KEY }}
+        run: |
+          if [ -z "$ANDROID_SIGNING_KEY" ]; then
+            echo '::error::Run npm run setup:android-signing -- --github once. No Expo account is needed. See README.md.'
+            exit 1
+          fi
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - name: Install browser
+        run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
+      - name: Save browser test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-test-report
+          path: playwright-report/
+          retention-days: 14
+      - name: Set release version
+        run: node scripts/prepare-release.mjs
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: android-actions/setup-android@v3
+      - name: Install Android SDK
+        run: sdkmanager "platforms;android-37" "build-tools;$ANDROID_BUILD_TOOLS_VERSION" "platform-tools" "ndk;27.1.12297006" "cmake;3.22.1"
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Generate native Android project locally
+        run: npm run prebuild:android
+      - name: Build standalone release APK
+        working-directory: android
+        run: ./gradlew :app:assembleRelease --no-daemon --max-workers=2
+      - name: Sign and verify APK
+        env:
+          ANDROID_SIGNING_KEY: ${{ secrets.ANDROID_SIGNING_KEY }}
+        run: npm run sign:android
+      - name: Save APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: timerlist-apk
+          path: timerlist.apk
+          if-no-files-found: error
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "v1.0.${GITHUB_RUN_NUMBER}" timerlist.apk \
+            --title "Timerlist 1.0.${GITHUB_RUN_NUMBER}" \
+            --target "$GITHUB_SHA" \
+            --generate-notes \
+            --notes "Download **timerlist.apk** below to install on Android. Allow installation from your browser when prompted. Existing installations can update without losing saved timers."
