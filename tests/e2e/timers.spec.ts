@@ -126,6 +126,44 @@ test('running timers survive reload', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'Pause long rest', exact: true })).toBeVisible();
 });
 
+test('right-side reset is only shown while running and affects only its timer', async ({ page }, info) => {
+  await expect(page.getByRole('button', { name: 'Reset rest', exact: true })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Start rest', exact: true }).click();
+  await page.getByRole('button', { name: 'Start long rest', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Reset rest', exact: true })).toBeVisible();
+  const resetBounds = await page.getByRole('button', { name: 'Reset rest', exact: true }).boundingBox();
+  const labelBounds = await page.getByRole('button', { name: 'Edit rest', exact: true }).boundingBox();
+  expect(resetBounds?.x).toBeGreaterThan(labelBounds ? labelBounds.x + labelBounds.width : 0);
+  await page.getByRole('button', { name: 'Pause rest', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Reset rest', exact: true })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Resume rest', exact: true }).click();
+  await capture(page, info, 'running-reset.png');
+  await page.getByRole('button', { name: 'Reset rest', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Start rest', exact: true })).toBeVisible();
+  await expect(page.getByTestId('countdown-sample-0')).toHaveText('01:30');
+  await expect(page.getByRole('button', { name: 'Reset rest', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Pause long rest', exact: true })).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole('button', { name: 'Start rest', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Reset long rest', exact: true })).toBeVisible();
+});
+
+test('running timer and reset button fit a narrow phone', async ({ page }, info) => {
+  await page.setViewportSize({ width: 320, height: 568 });
+  await page.getByRole('button', { name: 'Edit rest', exact: true }).click();
+  await page.getByRole('textbox', { name: 'Hours', exact: true }).fill('99');
+  await page.getByRole('button', { name: 'OK', exact: true }).click();
+  await page.getByRole('button', { name: 'Start rest', exact: true }).click();
+  const button = page.getByRole('button', { name: 'Reset rest', exact: true });
+  await expect(button).toBeInViewport();
+  const timeBounds = await page.getByTestId('countdown-sample-0').boundingBox();
+  const resetBounds = await button.boundingBox();
+  expect(timeBounds ? timeBounds.x + timeBounds.width : Infinity).toBeLessThanOrEqual(resetBounds?.x ?? 0);
+  await capture(page, info, 'narrow-running-reset.png');
+  await button.click();
+  await expect(page.getByRole('button', { name: 'Start rest', exact: true })).toBeVisible();
+});
+
 test('repeats exactly the requested rounds and can restart', async ({ page }, info) => {
   await page.clock.install();
   await createTimer(page, 'Round', 2, 3);

@@ -48,7 +48,7 @@ function TimerListScreen() {
         </>}
       </View>
       {!app.ready ? <View className="flex-1 items-center justify-center"><ActivityIndicator color={palette.orange} accessibilityLabel="Loading timers" /></View> : <ScrollView testID="timer-list" className="min-h-0 flex-1" contentContainerClassName="px-4 pb-4 pt-2" showsVerticalScrollIndicator={false}>
-        {app.timers.map((timer, index) => <TimerRow key={timer.id} timer={timer} now={timer.status === 'running' ? app.now : 0} index={index} total={app.timers.length} arranging={arranging} onToggle={() => app.toggle(timer.id)} onEdit={() => setEditor(timer)} onMore={() => setMenu(timer)} onMove={direction => app.move(timer.id, direction)} />)}
+        {app.timers.map((timer, index) => <TimerRow key={timer.id} timer={timer} now={timer.status === 'running' ? app.now : 0} index={index} total={app.timers.length} arranging={arranging} onToggle={() => app.toggle(timer.id)} onEdit={() => setEditor(timer)} onReset={() => app.reset(timer.id)} onMore={() => setMenu(timer)} onMove={direction => app.move(timer.id, direction)} />)}
       </ScrollView>}
       {!!app.notice && <View accessibilityRole="alert" className="flex-row items-center gap-2 bg-raised px-4 py-2"><Text className="flex-1 font-body text-sm text-cream">{app.notice}</Text><IconButton icon="close" label="Dismiss notice" onPress={() => app.setNotice('')} /></View>}
     </View>
