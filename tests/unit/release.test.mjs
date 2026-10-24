@@ -283,3 +283,16 @@ if (args[0] === '--list_installed') console.log([
   assert.deepEqual(calls[2], ['platforms;android-37.0', 'build-tools;37.0.0', 'platform-tools', 'ndk;27.1.12297006', 'cmake;3.22.1']);
   assert.equal(await readFile(output, 'utf8'), ['ANDROID_NDK', 'ANDROID_NDK_HOME', 'ANDROID_NDK_ROOT', 'ANDROID_NDK_LATEST_HOME'].map(name => `${name}=${join(cwd, 'ndk', '27.1.12297006')}\n`).join(''));
 });
+
+test('CI budgets disk separately before and after restoring cached build inputs', async () => {
+  const workflow = await readFile('.github/workflows/release.yml', 'utf8');
+  const before = workflow.indexOf('- name: Check runner disk before restoring build inputs');
+  const gradleCache = workflow.indexOf('- uses: gradle/actions/setup-gradle');
+  const compilerCache = workflow.indexOf('- name: Restore native compiler cache');
+  const after = workflow.indexOf('- name: Check native build disk budget');
+  const build = workflow.indexOf('- name: Build standalone release APK');
+  assert.ok(before > 0 && before < gradleCache);
+  assert.ok(gradleCache < compilerCache && compilerCache < after && after < build);
+  assert.match(workflow.slice(before, gradleCache), /available < 20 \* 1024 \* 1024 \* 1024/);
+  assert.match(workflow.slice(after, build), /available < 16 \* 1024 \* 1024 \* 1024/);
+});

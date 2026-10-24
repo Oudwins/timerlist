@@ -72,7 +72,7 @@ Release builds retain support for all four Android ABIs. Gradle's **build cache*
 
 CI reports compiler-cache hits in the job summary and saves an **`android-build-profile`** artifact containing Gradle's per-task timing report. It uses a bounded 3 GiB Gradle heap and two workers for the standard private-repository runner; it does not select a paid larger runner or disable release optimization, signing, or tests. Actual improvements should be checked from the timing reports rather than assuming a fixed build time.
 
-On disposable Linux GitHub-hosted runners only, setup removes the image's unused .NET, Swift, GHC, and CodeQL toolchains and uses `sdkmanager` to prune unused SDK versions. Java, the required Android SDKs, and the workspace are preserved. A preflight requires at least 20 GiB of free working disk before compilation. Cleanup refuses to run locally or on self-hosted runners.
+On disposable Linux GitHub-hosted runners only, setup removes the image's unused .NET, Swift, GHC, and CodeQL toolchains and uses `sdkmanager` to prune unused SDK versions. Java, the required Android SDKs, and the workspace are preserved. Preflight requires 20 GiB free before restoring build inputs and 16 GiB of working space afterward, accounting for the disk already occupied by restored caches. Cleanup refuses to run locally or on self-hosted runners.
 
 After a successful build has populated the caches, run `gh workflow run release.yml -f publish=false` to measure a warm build on a fresh runner without publishing another release or consuming a version number.
 

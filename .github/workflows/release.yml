@@ -84,6 +84,13 @@ jobs:
           df -h "$GITHUB_WORKSPACE"
           node scripts/setup-ci-android-sdk.mjs
           df -h "$GITHUB_WORKSPACE"
+      - name: Check runner disk before restoring build inputs
+        run: |
+          available=$(df -B1 --output=avail "$GITHUB_WORKSPACE" | tail -n 1)
+          if (( available < 20 * 1024 * 1024 * 1024 )); then
+            echo '::error::Native builds require at least 20 GiB free before restoring build inputs.'
+            exit 1
+          fi
       - uses: gradle/actions/setup-gradle@v4
       - name: Generate native Android project locally
         run: npm run prebuild:android
@@ -107,8 +114,8 @@ jobs:
         run: |
           df -h "$GITHUB_WORKSPACE"
           available=$(df -B1 --output=avail "$GITHUB_WORKSPACE" | tail -n 1)
-          if (( available < 20 * 1024 * 1024 * 1024 )); then
-            echo '::error::Native builds require at least 20 GiB of free working disk after restoring caches.'
+          if (( available < 16 * 1024 * 1024 * 1024 )); then
+            echo '::error::Native builds require at least 16 GiB of free working disk after restoring caches.'
             exit 1
           fi
       - name: Build standalone release APK
@@ -120,7 +127,9 @@ jobs:
             '-Dorg.gradle.jvmargs=-Xmx3g -XX:MaxMetaspaceSize=1g -XX:+UseParallelGC -XX:+HeapDumpOnOutOfMemoryError -Dfile.encoding=UTF-8'
       - name: Report native compiler cache usage
         if: ${{ always() && (steps.android-build.outcome == 'success' || steps.android-build.outcome == 'failure') }}
-        run: ccache --show-stats | tee -a "$GITHUB_STEP_SUMMARY"
+        run: |
+          df -h "$GITHUB_WORKSPACE"
+          ccache --show-stats | tee -a "$GITHUB_STEP_SUMMARY"
       - name: Save native build timing report
         if: always()
         uses: actions/upload-artifact@v4
