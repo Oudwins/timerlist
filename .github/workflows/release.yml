@@ -79,8 +79,11 @@ jobs:
           packages: platform-tools
           cmdline-tools-version: '16111833'
           log-accepted-android-sdk-licenses: false
-      - name: Install Android SDK
-        run: sdkmanager "platforms;android-37.0" "build-tools;$ANDROID_BUILD_TOOLS_VERSION" "platform-tools" "ndk;27.1.12297006" "cmake;3.22.1"
+      - name: Prune unused SDKs and install required versions
+        run: |
+          df -h "$GITHUB_WORKSPACE"
+          node scripts/setup-ci-android-sdk.mjs
+          df -h "$GITHUB_WORKSPACE"
       - uses: gradle/actions/setup-gradle@v4
       - name: Generate native Android project locally
         run: npm run prebuild:android
@@ -100,6 +103,14 @@ jobs:
           key: ${{ runner.os }}-${{ runner.arch }}-android-ccache-v1-${{ hashFiles('package-lock.json') }}-${{ github.sha }}
           restore-keys: |
             ${{ runner.os }}-${{ runner.arch }}-android-ccache-v1-${{ hashFiles('package-lock.json') }}-
+      - name: Check native build disk budget
+        run: |
+          df -h "$GITHUB_WORKSPACE"
+          available=$(df -B1 --output=avail "$GITHUB_WORKSPACE" | tail -n 1)
+          if (( available < 20 * 1024 * 1024 * 1024 )); then
+            echo '::error::Native builds require at least 20 GiB of free working disk after restoring caches.'
+            exit 1
+          fi
       - name: Build standalone release APK
         id: android-build
         working-directory: android

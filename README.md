@@ -72,6 +72,8 @@ Release builds retain support for all four Android ABIs. Gradle's **build cache*
 
 CI reports compiler-cache hits in the job summary and saves an **`android-build-profile`** artifact containing Gradle's per-task timing report. It uses a bounded 3 GiB Gradle heap and two workers for the standard private-repository runner; it does not select a paid larger runner or disable release optimization, signing, or tests. Actual improvements should be checked from the timing reports rather than assuming a fixed build time.
 
+On disposable GitHub-hosted runners only, setup uses `sdkmanager` to remove unused preinstalled platform, build-tools, NDK, CMake, and emulator packages. It preserves the SDK versions this app needs and checks for at least 20 GiB of free working disk before compilation. Local SDKs and self-hosted runners are never pruned.
+
 After a successful build has populated the caches, run `gh workflow run release.yml -f publish=false` to measure a warm build on a fresh runner without publishing another release or consuming a version number.
 
 ### One-time Android signing setup

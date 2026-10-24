@@ -12,6 +12,7 @@ const setup = resolve('scripts/setup-android-signing.mjs');
 const sign = resolve('scripts/sign-android.mjs');
 const verifyApk = resolve('scripts/verify-apk.mjs');
 const buildAndroid = resolve('scripts/build-android.mjs');
+const setupCiSdk = resolve('scripts/setup-ci-android-sdk.mjs');
 
 async function workspace(context) {
   const directory = await mkdtemp(join(process.env.RUNNER_TEMP || tmpdir(), 'timerlist-release-'));
@@ -223,4 +224,48 @@ appendFileSync(process.env.TEST_BUILD_LOG, JSON.stringify({ name: process.argv[1
   assert.ok(calls[1].args.includes(':app:assembleRelease'));
   for (const flag of ['--build-cache', '--parallel', '--profile']) assert.ok(calls[1].args.includes(flag));
   assert.ok(!calls[1].args.some(arg => arg.includes('reactNativeArchitectures')));
+});
+
+test('SDK pruning refuses local and self-hosted environments', async context => {
+  const cwd = await workspace(context);
+  for (const environment of ['local', 'self-hosted']) {
+    await assert.rejects(run(process.execPath, [setupCiSdk], { cwd, env: { ...process.env, GITHUB_ACTIONS: environment === 'local' ? '' : 'true', RUNNER_ENVIRONMENT: environment } }), /restricted to disposable GitHub-hosted runners/);
+  }
+});
+
+test('hosted SDK setup only uninstalls unused packages and preserves required toolchains', async context => {
+  const cwd = await workspace(context);
+  const directory = join(cwd, 'bin');
+  await mkdir(directory);
+  const manager = join(directory, 'sdkmanager');
+  await writeFile(manager, `#!/usr/bin/env node
+const fs = require('node:fs');
+const args = process.argv.slice(2);
+fs.appendFileSync(process.env.TEST_SDK_LOG, JSON.stringify(args) + '\\n');
+if (args[0] === '--list_installed') console.log([
+  'Installed packages:',
+  'Path | Version | Description',
+  'ndk;27.1.12297006 | 27.1 | Required NDK',
+  'ndk;28.0.13004108 | 28.0 | Unused NDK',
+  'cmake;3.22.1 | 3.22 | Required CMake',
+  'cmake;3.31.1 | 3.31 | Unused CMake',
+  'platforms;android-37.0 | 2 | Required platform',
+  'platforms;android-35 | 1 | Unused platform',
+  'build-tools;37.0.0 | 37 | Required build tools',
+  'build-tools;35.0.0 | 35 | Unused build tools',
+  'system-images;android-36;google_apis;x86_64 | 1 | Emulator image',
+  'emulator | 36 | Emulator',
+  'platform-tools | 36 | Platform tools',
+  'cmdline-tools;23.0 | 23 | Active SDK manager'
+].join('\\n'));
+`);
+  await chmod(manager, 0o755);
+  const log = join(cwd, 'sdk.jsonl');
+  const output = join(cwd, 'environment');
+  await run(process.execPath, [setupCiSdk], { cwd, env: { ...process.env, PATH: `${directory}:${process.env.PATH}`, GITHUB_ACTIONS: 'true', RUNNER_ENVIRONMENT: 'github-hosted', ANDROID_HOME: cwd, ANDROID_BUILD_TOOLS_VERSION: '37.0.0', GITHUB_ENV: output, TEST_SDK_LOG: log } });
+  const calls = (await readFile(log, 'utf8')).trim().split('\n').map(line => JSON.parse(line));
+  assert.deepEqual(calls[0], ['--list_installed']);
+  assert.deepEqual(calls[1], ['--uninstall', 'ndk;28.0.13004108', 'cmake;3.31.1', 'platforms;android-35', 'build-tools;35.0.0', 'system-images;android-36;google_apis;x86_64', 'emulator']);
+  assert.deepEqual(calls[2], ['platforms;android-37.0', 'build-tools;37.0.0', 'platform-tools', 'ndk;27.1.12297006', 'cmake;3.22.1']);
+  assert.equal(await readFile(output, 'utf8'), ['ANDROID_NDK', 'ANDROID_NDK_HOME', 'ANDROID_NDK_ROOT', 'ANDROID_NDK_LATEST_HOME'].map(name => `${name}=${join(cwd, 'ndk', '27.1.12297006')}\n`).join(''));
 });
