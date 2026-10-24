@@ -60,9 +60,19 @@ Releases are queued and built one at a time to avoid duplicate version numbers w
 
 Or open Obtainium → **Add App** and paste **`https://github.com/Oudwins/timerlist`**, then add/install it using the GitHub source. No APK filter or prerelease setting is needed: there is only one APK, and releases use standard versions. Obtainium can then detect and install subsequent releases. Android's installation permissions and Obtainium's background-update settings still apply.
 
+For a **private repository**, Obtainium also needs a GitHub token with read access to that repository. Unauthenticated downloads for other users require a public repository or public release mirror; the workflow does not change repository visibility.
+
 The application ID (`com.oudwins.timerlist`) and signing key stay the same across releases. If you installed an earlier `1.0.x` build, install the first `0.0.1` APK once before setting up tracking for the new series. Its higher internal Android version code allows updating without uninstalling or deleting saved timers.
 
 No Expo services, accounts, tokens, EAS projects, push services, or OTA updates are used. Expo remains an open-source framework/build dependency only. GitHub runners download npm, Maven, and Android SDK dependencies as needed.
+
+### Build caching and timings
+
+Release builds retain support for all four Android ABIs. Gradle's **build cache** reuses compiled Java/Kotlin tasks, while a separately persisted **ccache** reuses native C/C++ compilation across fresh runners. The compiler cache is keyed by dependency versions and validates compiler contents, including support for precompiled headers. The first build populates these caches; subsequent builds with unchanged native dependencies can reuse them.
+
+CI reports compiler-cache hits in the job summary and saves an **`android-build-profile`** artifact containing Gradle's per-task timing report. It uses a bounded 3 GiB Gradle heap and two workers for the standard private-repository runner; it does not select a paid larger runner or disable release optimization, signing, or tests. Actual improvements should be checked from the timing reports rather than assuming a fixed build time.
+
+After a successful build has populated the caches, run `gh workflow run release.yml -f publish=false` to measure a warm build on a fresh runner without publishing another release or consuming a version number.
 
 ### One-time Android signing setup
 

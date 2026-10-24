@@ -9,5 +9,5 @@ if (!process.env.ANDROID_SIGNING_KEY) {
 }
 const env = { ...process.env, EXPO_OFFLINE: '1', EXPO_NO_TELEMETRY: '1' };
 execFileSync(process.execPath, ['scripts/expo.mjs', 'prebuild', '--platform', 'android', '--no-install'], { stdio: 'inherit', env });
-execFileSync(resolve('android', process.platform === 'win32' ? 'gradlew.bat' : 'gradlew'), [':app:assembleRelease', '--no-daemon', '--max-workers=2'], { cwd: 'android', stdio: 'inherit', env });
+execFileSync(resolve('android', process.platform === 'win32' ? 'gradlew.bat' : 'gradlew'), [':app:assembleRelease', '--no-daemon', '--max-workers=2', '--build-cache', '--parallel', '--profile'], { cwd: 'android', stdio: 'inherit', env });
 execFileSync(process.execPath, ['scripts/sign-android.mjs'], { stdio: 'inherit', env });

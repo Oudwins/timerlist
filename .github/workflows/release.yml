@@ -4,6 +4,11 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      publish:
+        description: Publish the APK (disable for a build benchmark)
+        type: boolean
+        default: true
 
 permissions:
   contents: write
@@ -23,6 +28,13 @@ jobs:
       EXPO_OFFLINE: '1'
       EXPO_NO_TELEMETRY: '1'
       ANDROID_BUILD_TOOLS_VERSION: '37.0.0'
+      CMAKE_C_COMPILER_LAUNCHER: ccache
+      CMAKE_CXX_COMPILER_LAUNCHER: ccache
+      CCACHE_BASEDIR: ${{ github.workspace }}
+      CCACHE_COMPILERCHECK: content
+      CCACHE_SLOPPINESS: pch_defines,time_macros
+      CCACHE_PCH_EXTSUM: 'true'
+      CCACHE_MAXSIZE: 2GiB
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v6
@@ -72,9 +84,40 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
       - name: Generate native Android project locally
         run: npm run prebuild:android
+      - name: Install native compiler cache
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends ccache
+          mkdir -p "$RUNNER_TEMP/timerlist-ccache"
+          echo "CCACHE_DIR=$RUNNER_TEMP/timerlist-ccache" >> "$GITHUB_ENV"
+          ccache --version
+          nproc
+          free -h
+      - name: Restore native compiler cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.CCACHE_DIR }}
+          key: ${{ runner.os }}-${{ runner.arch }}-android-ccache-v1-${{ hashFiles('package-lock.json') }}-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-android-ccache-v1-${{ hashFiles('package-lock.json') }}-
       - name: Build standalone release APK
+        id: android-build
         working-directory: android
-        run: ./gradlew :app:assembleRelease --no-daemon --max-workers=2
+        run: |
+          ccache --zero-stats
+          ./gradlew :app:assembleRelease --no-daemon --max-workers=2 --build-cache --parallel --profile \
+            '-Dorg.gradle.jvmargs=-Xmx3g -XX:MaxMetaspaceSize=1g -XX:+UseParallelGC -XX:+HeapDumpOnOutOfMemoryError -Dfile.encoding=UTF-8'
+      - name: Report native compiler cache usage
+        if: ${{ always() && (steps.android-build.outcome == 'success' || steps.android-build.outcome == 'failure') }}
+        run: ccache --show-stats | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Save native build timing report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-build-profile
+          path: android/build/reports/profile/
+          if-no-files-found: ignore
+          retention-days: 7
       - name: Sign and verify APK
         env:
           ANDROID_SIGNING_KEY: ${{ secrets.ANDROID_SIGNING_KEY }}
@@ -82,12 +125,14 @@ jobs:
       - name: Verify package and version for Obtainium
         run: node scripts/verify-apk.mjs
       - name: Save APK
+        if: github.event_name != 'workflow_dispatch' || inputs.publish
         uses: actions/upload-artifact@v4
         with:
           name: timerlist-apk
           path: timerlist.apk
           if-no-files-found: error
       - name: Publish GitHub release
+        if: github.event_name != 'workflow_dispatch' || inputs.publish
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_VERSION: ${{ steps.version.outputs.version }}

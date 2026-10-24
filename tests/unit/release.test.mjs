@@ -11,6 +11,7 @@ const prepare = resolve('scripts/prepare-release.mjs');
 const setup = resolve('scripts/setup-android-signing.mjs');
 const sign = resolve('scripts/sign-android.mjs');
 const verifyApk = resolve('scripts/verify-apk.mjs');
+const buildAndroid = resolve('scripts/build-android.mjs');
 
 async function workspace(context) {
   const directory = await mkdtemp(join(process.env.RUNNER_TEMP || tmpdir(), 'timerlist-release-'));
@@ -201,4 +202,25 @@ test('Obtainium install link supplies the real app ID and GitHub source', async 
   assert.equal(config.id, app.android.package);
   assert.equal(config.url, 'https://github.com/Oudwins/timerlist');
   assert.equal(config.name, app.name);
+});
+
+test('Android build enables compiled-output caching and profiling without restricting ABIs', async context => {
+  const cwd = await workspace(context);
+  await mkdir(join(cwd, 'scripts'));
+  await mkdir(join(cwd, 'android'));
+  const record = `import { appendFileSync } from 'node:fs';
+appendFileSync(process.env.TEST_BUILD_LOG, JSON.stringify({ name: process.argv[1].split('/').pop(), args: process.argv.slice(2), offline: process.env.EXPO_OFFLINE, telemetry: process.env.EXPO_NO_TELEMETRY }) + '\\n');
+`;
+  for (const script of ['expo.mjs', 'sign-android.mjs']) await writeFile(join(cwd, 'scripts', script), record);
+  const gradle = join(cwd, 'android', 'gradlew');
+  await writeFile(gradle, `#!/usr/bin/env node\n${record}`);
+  await chmod(gradle, 0o755);
+  const log = join(cwd, 'build.jsonl');
+  await run(process.execPath, [buildAndroid], { cwd, env: { ...process.env, ANDROID_HOME: cwd, ANDROID_SIGNING_KEY: 'test-fixture', TEST_BUILD_LOG: log } });
+  const calls = (await readFile(log, 'utf8')).trim().split('\n').map(line => JSON.parse(line));
+  assert.deepEqual(calls.map(call => call.name), ['expo.mjs', 'gradlew', 'sign-android.mjs']);
+  assert.ok(calls.every(call => call.offline === '1' && call.telemetry === '1'));
+  assert.ok(calls[1].args.includes(':app:assembleRelease'));
+  for (const flag of ['--build-cache', '--parallel', '--profile']) assert.ok(calls[1].args.includes(flag));
+  assert.ok(!calls[1].args.some(arg => arg.includes('reactNativeArchitectures')));
 });
