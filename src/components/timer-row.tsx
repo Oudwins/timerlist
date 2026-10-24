@@ -16,7 +16,7 @@ export const TimerRow = memo(function TimerRow({ timer, now, index, total, arran
   const canReset = remaining !== timer.duration * 1000 || timer.completed > 0;
   const circumference = 2 * Math.PI * 32;
   const progress = Math.min(1, remaining / (timer.duration * 1000));
-  return <View testID={`timer-${timer.id}`} className="min-h-[104px] flex-row items-center gap-3 py-3">
+  return <View testID={`timer-${timer.id}`} className="-mx-4 min-h-[104px] flex-row items-center gap-3 px-4 py-3">
     <Pressable accessibilityRole="button" accessibilityLabel={`Options for ${timer.label}`} onPress={onMore} className="h-14 w-7 items-center justify-center">
       <Icon name={timer.repeats > 1 ? 'repeat' : 'left'} size={17} color={timer.repeats > 1 ? timer.color : palette.faint} />
     </Pressable>
@@ -35,7 +35,10 @@ export const TimerRow = memo(function TimerRow({ timer, now, index, total, arran
       </View>
       {timer.repeats > 1 && <Text accessibilityLabel={`Round ${Math.min(timer.completed + 1, timer.repeats)} of ${timer.repeats}`} className="font-body text-xs text-muted">{Math.min(timer.completed + 1, timer.repeats)}/{timer.repeats}</Text>}
     </Pressable>
-    {!arranging && <View className="h-11 w-11">{canReset && <IconButton icon="reset" label={`Reset ${timer.label}`} onPress={onReset} />}</View>}
+    {!arranging && <View className="h-11 w-11" />}
+    {canReset && !arranging && <Pressable accessibilityRole="button" accessibilityLabel={`Reset ${timer.label}`} onPress={onReset} className="group absolute right-1.5 top-1/2 h-16 w-16 -translate-y-1/2 items-center justify-center">
+      <View className="pointer-events-none h-11 w-11 items-center justify-center rounded-xl group-hover:bg-white/5 group-active:bg-white/10"><Icon name="reset" color={palette.muted} size={20} /></View>
+    </Pressable>}
     {arranging && <View><IconButton icon="up" label={`Move ${timer.label} up`} disabled={index === 0} onPress={() => onMove(-1)} /><IconButton icon="down" label={`Move ${timer.label} down`} disabled={index === total - 1} onPress={() => onMove(1)} /></View>}
   </View>;
 });

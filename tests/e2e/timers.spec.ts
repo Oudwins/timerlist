@@ -175,6 +175,32 @@ test('lap counts and timer row geometry stay stable before play, pause, and rese
   expect(await label.boundingBox()).toEqual(initialLabel);
 });
 
+test('reset accepts taps outside its unchanged visual button', async ({ page }, info) => {
+  const time = new Date();
+  await page.clock.install({ time });
+  await page.clock.pauseAt(new Date(time.getTime() + 1000));
+  const label = page.getByRole('button', { name: 'Edit rest', exact: true });
+  const initialLabel = await label.boundingBox();
+  for (const position of [{ x: 5, y: 32 }, { x: 59, y: 32 }, { x: 32, y: 5 }, { x: 32, y: 59 }]) {
+    await page.getByRole('button', { name: 'Start rest', exact: true }).click();
+    await page.clock.fastForward(1000);
+    const button = page.getByRole('button', { name: 'Reset rest', exact: true });
+    await expect(button).toBeVisible();
+    const bounds = await button.boundingBox();
+    expect(bounds?.width).toBe(64);
+    expect(bounds?.height).toBe(64);
+    const icon = await button.locator('svg').boundingBox();
+    expect(icon?.width).toBe(20);
+    expect(icon?.height).toBe(20);
+    expect(await label.boundingBox()).toEqual(initialLabel);
+    if (info.project.use.hasTouch) await button.tap({ position });
+    else await button.click({ position });
+    await expect(page.getByRole('button', { name: 'Start rest', exact: true })).toBeVisible();
+    await expect(page.getByTestId('countdown-sample-0')).toHaveText('01:30');
+    await expect(page.getByRole('button', { name: 'Reset rest', exact: true })).toHaveCount(0);
+  }
+});
+
 test('reset remains available at later lap boundaries and after finishing', async ({ page }) => {
   const time = new Date();
   await page.clock.install({ time });
