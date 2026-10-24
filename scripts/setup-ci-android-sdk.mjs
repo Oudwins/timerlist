@@ -1,14 +1,24 @@
 import { execFileSync } from 'node:child_process';
 import { appendFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 
 // Never prune a developer's SDK or a persistent self-hosted runner.
-if (process.env.GITHUB_ACTIONS !== 'true' || process.env.RUNNER_ENVIRONMENT !== 'github-hosted') {
-  throw new Error('SDK pruning is restricted to disposable GitHub-hosted runners.');
+if (process.env.GITHUB_ACTIONS !== 'true' || process.env.RUNNER_ENVIRONMENT !== 'github-hosted' || process.env.RUNNER_OS !== 'Linux') {
+  throw new Error('Runner cleanup is restricted to disposable GitHub-hosted runners on Linux.');
 }
 
 const sdk = process.env.ANDROID_HOME || process.env.ANDROID_SDK_ROOT;
 if (!sdk) throw new Error('Android SDK directory is required.');
+
+// Fixed installation paths from actions/runner-images. None is used by this build.
+const unusedToolchains = ['/usr/share/dotnet', '/usr/share/swift', '/usr/local/.ghcup', '/opt/hostedtoolcache/CodeQL'];
+const protectedPaths = [sdk, process.env.GITHUB_WORKSPACE].filter(Boolean).map(path => resolve(path));
+if (unusedToolchains.some(directory => protectedPaths.some(path => path === directory || path.startsWith(`${directory}/`)))) {
+  throw new Error('Refusing to remove a protected workspace or SDK directory.');
+}
+console.log(`Removing unused image toolchains: ${unusedToolchains.join(', ')}`);
+execFileSync('sudo', ['rm', '-rf', '--', ...unusedToolchains], { stdio: 'inherit' });
+
 const ndkVersion = '27.1.12297006';
 const required = [
   'platforms;android-37.0',

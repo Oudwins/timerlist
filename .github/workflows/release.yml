@@ -79,7 +79,7 @@ jobs:
           packages: platform-tools
           cmdline-tools-version: '16111833'
           log-accepted-android-sdk-licenses: false
-      - name: Prune unused SDKs and install required versions
+      - name: Reclaim hosted-runner disk and install Android SDK
         run: |
           df -h "$GITHUB_WORKSPACE"
           node scripts/setup-ci-android-sdk.mjs

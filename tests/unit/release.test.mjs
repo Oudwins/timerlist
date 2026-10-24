@@ -226,10 +226,17 @@ appendFileSync(process.env.TEST_BUILD_LOG, JSON.stringify({ name: process.argv[1
   assert.ok(!calls[1].args.some(arg => arg.includes('reactNativeArchitectures')));
 });
 
-test('SDK pruning refuses local and self-hosted environments', async context => {
+test('runner cleanup refuses local, self-hosted, and non-Linux environments', async context => {
   const cwd = await workspace(context);
-  for (const environment of ['local', 'self-hosted']) {
-    await assert.rejects(run(process.execPath, [setupCiSdk], { cwd, env: { ...process.env, GITHUB_ACTIONS: environment === 'local' ? '' : 'true', RUNNER_ENVIRONMENT: environment } }), /restricted to disposable GitHub-hosted runners/);
+  for (const [actions, environment, os] of [['', 'local', 'Linux'], ['true', 'self-hosted', 'Linux'], ['true', 'github-hosted', 'macOS']]) {
+    await assert.rejects(run(process.execPath, [setupCiSdk], { cwd, env: { ...process.env, GITHUB_ACTIONS: actions, RUNNER_ENVIRONMENT: environment, RUNNER_OS: os } }), /restricted to disposable GitHub-hosted runners/);
+  }
+});
+
+test('runner cleanup protects source and SDK paths before invoking removal', async context => {
+  const cwd = await workspace(context);
+  for (const workspacePath of ['/usr/share/dotnet/project', '/usr/share/swift', '/usr/local/.ghcup/project', '/opt/hostedtoolcache/CodeQL/source']) {
+    await assert.rejects(run(process.execPath, [setupCiSdk], { cwd, env: { ...process.env, GITHUB_ACTIONS: 'true', RUNNER_ENVIRONMENT: 'github-hosted', RUNNER_OS: 'Linux', GITHUB_WORKSPACE: workspacePath, ANDROID_HOME: cwd } }), /Refusing to remove a protected workspace or SDK directory/);
   }
 });
 
@@ -238,6 +245,11 @@ test('hosted SDK setup only uninstalls unused packages and preserves required to
   const directory = join(cwd, 'bin');
   await mkdir(directory);
   const manager = join(directory, 'sdkmanager');
+  const sudo = join(directory, 'sudo');
+  await writeFile(sudo, `#!/usr/bin/env node
+require('node:fs').appendFileSync(process.env.TEST_SUDO_LOG, JSON.stringify(process.argv.slice(2)) + '\\n');
+`);
+  await chmod(sudo, 0o755);
   await writeFile(manager, `#!/usr/bin/env node
 const fs = require('node:fs');
 const args = process.argv.slice(2);
@@ -261,8 +273,10 @@ if (args[0] === '--list_installed') console.log([
 `);
   await chmod(manager, 0o755);
   const log = join(cwd, 'sdk.jsonl');
+  const removals = join(cwd, 'removals.jsonl');
   const output = join(cwd, 'environment');
-  await run(process.execPath, [setupCiSdk], { cwd, env: { ...process.env, PATH: `${directory}:${process.env.PATH}`, GITHUB_ACTIONS: 'true', RUNNER_ENVIRONMENT: 'github-hosted', ANDROID_HOME: cwd, ANDROID_BUILD_TOOLS_VERSION: '37.0.0', GITHUB_ENV: output, TEST_SDK_LOG: log } });
+  await run(process.execPath, [setupCiSdk], { cwd, env: { ...process.env, PATH: `${directory}:${process.env.PATH}`, GITHUB_ACTIONS: 'true', RUNNER_ENVIRONMENT: 'github-hosted', RUNNER_OS: 'Linux', ANDROID_HOME: cwd, ANDROID_BUILD_TOOLS_VERSION: '37.0.0', GITHUB_ENV: output, TEST_SDK_LOG: log, TEST_SUDO_LOG: removals } });
+  assert.deepEqual(JSON.parse((await readFile(removals, 'utf8')).trim()), ['rm', '-rf', '--', '/usr/share/dotnet', '/usr/share/swift', '/usr/local/.ghcup', '/opt/hostedtoolcache/CodeQL']);
   const calls = (await readFile(log, 'utf8')).trim().split('\n').map(line => JSON.parse(line));
   assert.deepEqual(calls[0], ['--list_installed']);
   assert.deepEqual(calls[1], ['--uninstall', 'ndk;28.0.13004108', 'cmake;3.31.1', 'platforms;android-35', 'build-tools;35.0.0', 'system-images;android-36;google_apis;x86_64', 'emulator']);
