@@ -13,6 +13,7 @@ export const TimerRow = memo(function TimerRow({ timer, now, index, total, arran
 }) {
   const running = timer.status === 'running';
   const remaining = remainingTime(timer, now);
+  const canReset = remaining !== timer.duration * 1000 || timer.completed > 0;
   const circumference = 2 * Math.PI * 32;
   const progress = Math.min(1, remaining / (timer.duration * 1000));
   return <View testID={`timer-${timer.id}`} className="min-h-[104px] flex-row items-center gap-3 py-3">
@@ -29,12 +30,12 @@ export const TimerRow = memo(function TimerRow({ timer, now, index, total, arran
     <Pressable accessibilityRole="button" accessibilityLabel={`Edit ${timer.label}`} onPress={onEdit} className="min-w-0 flex-1 justify-center">
       <Text numberOfLines={1} className="font-body text-[19px] leading-7 text-cream">{timer.label}</Text>
       <View className="flex-row items-baseline">
-        <Text testID={`countdown-${timer.id}`} className={`font-body ${timer.duration >= 3600 || arranging ? 'text-[24px]' : 'text-[31px]'} ${running ? 'max-[359px]:text-[22px]' : ''} leading-[40px] text-cream`} style={{ fontVariant: ['tabular-nums'] }}>{formatTime(Math.floor(remaining / 1000) * 1000)}</Text>
-        {!arranging && <Text className={`font-body text-[20px] text-cream ${running ? timer.duration >= 3600 ? 'max-[359px]:hidden' : 'max-[359px]:text-[14px]' : ''}`} style={{ fontVariant: ['tabular-nums'] }}>.{String(Math.floor(remaining % 1000)).padStart(3, '0')}</Text>}
+        <Text testID={`countdown-${timer.id}`} className={`font-body ${timer.duration >= 3600 || arranging ? 'text-[24px]' : 'text-[31px]'} max-[359px]:text-[22px] leading-[40px] text-cream`} style={{ fontVariant: ['tabular-nums'] }}>{formatTime(Math.floor(remaining / 1000) * 1000)}</Text>
+        {!arranging && <Text className={`font-body text-[20px] text-cream ${timer.duration >= 3600 ? 'max-[359px]:hidden' : 'max-[359px]:text-[14px]'}`} style={{ fontVariant: ['tabular-nums'] }}>.{String(Math.floor(remaining % 1000)).padStart(3, '0')}</Text>}
       </View>
-      {timer.repeats > 1 && timer.status !== 'idle' && <Text accessibilityLabel={`Round ${Math.min(timer.completed + 1, timer.repeats)} of ${timer.repeats}`} className="font-body text-xs text-muted">{Math.min(timer.completed + 1, timer.repeats)}/{timer.repeats}</Text>}
+      {timer.repeats > 1 && <Text accessibilityLabel={`Round ${Math.min(timer.completed + 1, timer.repeats)} of ${timer.repeats}`} className="font-body text-xs text-muted">{Math.min(timer.completed + 1, timer.repeats)}/{timer.repeats}</Text>}
     </Pressable>
-    {running && !arranging && <IconButton icon="reset" label={`Reset ${timer.label}`} onPress={onReset} />}
+    {!arranging && <View className="h-11 w-11">{canReset && <IconButton icon="reset" label={`Reset ${timer.label}`} onPress={onReset} />}</View>}
     {arranging && <View><IconButton icon="up" label={`Move ${timer.label} up`} disabled={index === 0} onPress={() => onMove(-1)} /><IconButton icon="down" label={`Move ${timer.label} down`} disabled={index === total - 1} onPress={() => onMove(1)} /></View>}
   </View>;
 });
