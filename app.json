@@ -2,7 +2,7 @@
   "expo": {
     "name": "Timerlist",
     "slug": "timerlist",
-    "version": "1.0.0",
+    "version": "0.0.1",
     "orientation": "portrait",
     "icon": "./assets/brand/icon.png",
     "scheme": "timerlist",
@@ -19,7 +19,7 @@
         "monochromeImage": "./assets/brand/monochrome-icon.png"
       },
       "package": "com.oudwins.timerlist",
-      "versionCode": 1,
+      "versionCode": 1000001,
       "permissions": [
         "android.permission.SCHEDULE_EXACT_ALARM",
         "android.permission.USE_EXACT_ALARM"

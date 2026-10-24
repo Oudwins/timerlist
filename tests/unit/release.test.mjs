@@ -10,6 +10,7 @@ const run = promisify(execFile);
 const prepare = resolve('scripts/prepare-release.mjs');
 const setup = resolve('scripts/setup-android-signing.mjs');
 const sign = resolve('scripts/sign-android.mjs');
+const verifyApk = resolve('scripts/verify-apk.mjs');
 
 async function workspace(context) {
   const directory = await mkdtemp(join(process.env.RUNNER_TEMP || tmpdir(), 'timerlist-release-'));
@@ -19,22 +20,68 @@ async function workspace(context) {
 
 test('release preparation needs no Expo credentials and preserves app settings', async context => {
   const cwd = await workspace(context);
-  const config = { expo: { name: 'Timerlist', version: '1.0.0', android: { package: 'com.oudwins.timerlist', versionCode: 1 }, extra: { feature: true } } };
+  const config = { expo: { name: 'Timerlist', version: '0.0.1', android: { package: 'com.oudwins.timerlist', versionCode: 1 }, extra: { feature: true } } };
   await writeFile(join(cwd, 'app.json'), JSON.stringify(config));
-  await run(process.execPath, [prepare], { cwd, env: { ...process.env, GITHUB_RUN_NUMBER: '42' } });
+  await writeFile(join(cwd, 'releases.json'), '[[]]');
+  await run(process.execPath, [prepare], { cwd, env: { ...process.env, GITHUB_RUN_NUMBER: '42', GITHUB_OUTPUT: '' } });
   const app = JSON.parse(await readFile(join(cwd, 'app.json'), 'utf8')).expo;
-  assert.equal(app.version, '1.0.42');
-  assert.equal(app.android.versionCode, 1042);
+  assert.equal(app.version, '0.0.1');
+  assert.equal(app.android.versionCode, 1000001);
   assert.equal(app.android.package, 'com.oudwins.timerlist');
   assert.deepEqual(app.extra, { feature: true });
 });
 
-test('invalid release version numbers fail without changing configuration', async context => {
+test('release patches use published versions across pages, not names or run numbers', async context => {
+  const cwd = await workspace(context);
+  await writeFile(join(cwd, 'app.json'), JSON.stringify({ expo: { android: {} } }));
+  await writeFile(join(cwd, 'releases.json'), JSON.stringify([
+    [{ tag_name: 'v0.0.9' }, { tag_name: 'v1.0.99' }, { tag_name: 'v0.0.500', draft: true }],
+    [{ tag_name: 'v0.0.10' }, { tag_name: 'v0.1.0' }, { tag_name: 'v0.0.501', prerelease: true }],
+  ]));
+  await run(process.execPath, [prepare], { cwd, env: { ...process.env, GITHUB_RUN_NUMBER: '77', GITHUB_OUTPUT: '' } });
+  assert.equal(JSON.parse(await readFile(join(cwd, 'app.json'), 'utf8')).expo.version, '0.0.11');
+});
+
+test('release output and APK version agree and only the patch increases', async context => {
+  const cwd = await workspace(context);
+  const output = join(cwd, 'output');
+  await writeFile(join(cwd, 'app.json'), JSON.stringify({ expo: { android: {} } }));
+  await writeFile(join(cwd, 'releases.json'), '[[]]');
+  await run(process.execPath, [prepare], { cwd, env: { ...process.env, GITHUB_RUN_NUMBER: '50', GITHUB_OUTPUT: output } });
+  const first = JSON.parse(await readFile(join(cwd, 'app.json'), 'utf8')).expo;
+  assert.equal(first.version, '0.0.1');
+  await writeFile(join(cwd, 'releases.json'), JSON.stringify([[{ tag_name: 'v0.0.1' }]]));
+  await run(process.execPath, [prepare], { cwd, env: { ...process.env, GITHUB_RUN_NUMBER: '50', GITHUB_OUTPUT: output } });
+  const second = JSON.parse(await readFile(join(cwd, 'app.json'), 'utf8')).expo;
+  assert.equal(second.version, '0.0.2');
+  assert.equal(second.android.versionCode, first.android.versionCode + 1);
+  assert.equal(await readFile(output, 'utf8'), 'version=0.0.1\ntag=v0.0.1\nversion=0.0.2\ntag=v0.0.2\n');
+});
+
+test('patches never automatically roll over into minor or major versions', async context => {
+  const cwd = await workspace(context);
+  await writeFile(join(cwd, 'app.json'), JSON.stringify({ expo: { android: {} } }));
+  await writeFile(join(cwd, 'releases.json'), JSON.stringify([[{ tag_name: 'v0.0.999' }]]));
+  await run(process.execPath, [prepare], { cwd, env: { ...process.env, GITHUB_RUN_NUMBER: '52', GITHUB_OUTPUT: '' } });
+  assert.equal(JSON.parse(await readFile(join(cwd, 'app.json'), 'utf8')).expo.version, '0.0.1000');
+});
+
+test('invalid GitHub release data cannot silently reset the patch number', async context => {
   const cwd = await workspace(context);
   const original = JSON.stringify({ expo: { android: {} } });
   await writeFile(join(cwd, 'app.json'), original);
-  for (const number of ['', '0', '-1', '1.5', 'Infinity', '2099999001']) {
-    await assert.rejects(run(process.execPath, [prepare], { cwd, env: { ...process.env, GITHUB_RUN_NUMBER: number } }), /positive integer/);
+  await writeFile(join(cwd, 'releases.json'), '{}');
+  await assert.rejects(run(process.execPath, [prepare], { cwd, env: { ...process.env, GITHUB_RUN_NUMBER: '53', GITHUB_OUTPUT: '' } }), /paginated GitHub release data/);
+  assert.equal(await readFile(join(cwd, 'app.json'), 'utf8'), original);
+});
+
+test('patch numbers exceeding numeric or Android limits do not change configuration', async context => {
+  const cwd = await workspace(context);
+  const original = JSON.stringify({ expo: { android: {} } });
+  await writeFile(join(cwd, 'app.json'), original);
+  for (const patch of ['2099000000', '9007199254740991', '9007199254740992']) {
+    await writeFile(join(cwd, 'releases.json'), JSON.stringify([[{ tag_name: `v0.0.${patch}` }]]));
+    await assert.rejects(run(process.execPath, [prepare], { cwd, env: { ...process.env, GITHUB_OUTPUT: '' } }), /supported range|Android version-code limits/);
     assert.equal(await readFile(join(cwd, 'app.json'), 'utf8'), original);
   }
 });
@@ -114,4 +161,44 @@ test('a failed APK verification fails the release and removes the temporary key'
   const calls = (await readFile(env.SIGN_TEST_LOG, 'utf8')).trim().split('\n').map(line => JSON.parse(line));
   const signing = calls.find(call => call.args[0] === 'sign');
   await assert.rejects(access(signing.args[signing.args.indexOf('--ks') + 1]));
+});
+
+async function apkMetadataTools(context) {
+  const cwd = await workspace(context);
+  const directory = join(cwd, 'bin');
+  await mkdir(directory);
+  const analyzer = join(directory, 'apkanalyzer');
+  await writeFile(analyzer, `#!/usr/bin/env node
+const fs = require('node:fs');
+const [command, field, apk] = process.argv.slice(2);
+if (command !== 'manifest' || !fs.existsSync(apk)) process.exit(1);
+console.log(JSON.parse(process.env.TEST_APK_FIELDS)[field]);
+`);
+  await chmod(analyzer, 0o755);
+  await writeFile(join(cwd, 'timerlist.apk'), 'APK fixture');
+  const expected = { 'application-id': 'com.oudwins.timerlist', 'version-name': '0.0.1', 'version-code': '1000001' };
+  await writeFile(join(cwd, 'app.json'), JSON.stringify({ expo: { version: expected['version-name'], android: { package: expected['application-id'], versionCode: Number(expected['version-code']) } } }));
+  return { cwd, expected, env: { ...process.env, PATH: `${directory}:${process.env.PATH}` } };
+}
+
+test('APK metadata verification checks the actual package and both versions', async context => {
+  const { cwd, env, expected } = await apkMetadataTools(context);
+  const result = await run(process.execPath, [verifyApk], { cwd, env: { ...env, TEST_APK_FIELDS: JSON.stringify(expected) } });
+  assert.match(result.stdout, /com\.oudwins\.timerlist 0\.0\.1 \(1000001\)/);
+  for (const [field, value] of [['application-id', 'com.wrong.app'], ['version-name', '1.0.7'], ['version-code', '1']]) {
+    await assert.rejects(run(process.execPath, [verifyApk], { cwd, env: { ...env, TEST_APK_FIELDS: JSON.stringify({ ...expected, [field]: value }) } }), new RegExp(`APK ${field}: expected`));
+  }
+});
+
+test('Obtainium install link supplies the real app ID and GitHub source', async () => {
+  const readme = await readFile('README.md', 'utf8');
+  const app = JSON.parse(await readFile('app.json', 'utf8')).expo;
+  const link = readme.match(/\[Add Timerlist to Obtainium\]\(([^)]+)\)/);
+  assert.ok(link);
+  const deepLink = new URL(link[1]).searchParams.get('r');
+  assert.ok(deepLink?.startsWith('obtainium://app/'));
+  const config = JSON.parse(deepLink.slice('obtainium://app/'.length));
+  assert.equal(config.id, app.android.package);
+  assert.equal(config.url, 'https://github.com/Oudwins/timerlist');
+  assert.equal(config.name, app.name);
 });

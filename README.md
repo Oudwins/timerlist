@@ -46,11 +46,21 @@ The browser suite builds and tests the **production web export** in desktop and 
 [`.github/workflows/release.yml`](.github/workflows/release.yml) runs on **every push to `main`**, or manually through Actions. It:
 
 1. Runs lint, TypeScript, unit tests, and desktop/mobile browser tests.
-2. Sets version `1.0.<workflow run number>` and an increasing Android version code.
+2. Starts releases at **`0.0.1`** and increments only the last number: `0.0.2`, `0.0.3`, etc. The next patch is based on published `0.0.x` releases, not the workflow run number, so failed builds do not consume release numbers. Android's numeric version code also increases with each release and stays above the earlier `1.0.x` builds.
 3. Generates the native Android project **locally on the GitHub runner**, compiles it with Gradle, and signs/verifies the APK with the Android SDK tools.
 4. Creates a GitHub Release containing **`timerlist.apk`**, also available as an Actions artifact.
 
 Download releases at **https://github.com/Oudwins/timerlist/releases**. Once the first release exists, the stable download URL is **https://github.com/Oudwins/timerlist/releases/latest/download/timerlist.apk**. The APK does not need a development server. Android may ask you to allow installation from your browser.
+
+Releases are queued and built one at a time to avoid duplicate version numbers when multiple commits are pushed together. The release tag (`v0.0.x`), title (`0.0.x`), and APK version name agree. CI verifies the APK's package ID and version before publication. Each release contains one signed, universal `timerlist.apk` and is explicitly marked as the latest stable release.
+
+### Install and update with Obtainium
+
+[Add Timerlist to Obtainium](https://apps.obtainium.imranr.dev/redirect?r=obtainium://app/%7B%22id%22%3A%22com.oudwins.timerlist%22%2C%22url%22%3A%22https%3A%2F%2Fgithub.com%2FOudwins%2Ftimerlist%22%2C%22author%22%3A%22Oudwins%22%2C%22name%22%3A%22Timerlist%22%7D)
+
+Or open Obtainium → **Add App** and paste **`https://github.com/Oudwins/timerlist`**, then add/install it using the GitHub source. No APK filter or prerelease setting is needed: there is only one APK, and releases use standard versions. Obtainium can then detect and install subsequent releases. Android's installation permissions and Obtainium's background-update settings still apply.
+
+The application ID (`com.oudwins.timerlist`) and signing key stay the same across releases. If you installed an earlier `1.0.x` build, install the first `0.0.1` APK once before setting up tracking for the new series. Its higher internal Android version code allows updating without uninstalling or deleting saved timers.
 
 No Expo services, accounts, tokens, EAS projects, push services, or OTA updates are used. Expo remains an open-source framework/build dependency only. GitHub runners download npm, Maven, and Android SDK dependencies as needed.
 
