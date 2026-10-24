@@ -100,6 +100,74 @@ test('validates labels and zero durations; cancel does not save', async ({ page 
   await expect(page.getByRole('button', { name: 'Start Invalid', exact: true })).toHaveCount(0);
 });
 
+test('time controls support swipes, wrapping, taps, and direct input', async ({ page }, info) => {
+  await page.getByRole('button', { name: 'Add timer', exact: true }).click();
+  const seconds = page.getByRole('textbox', { name: 'Seconds', exact: true });
+  const swipe = async (field: string, dy: number) => {
+    const bounds = await page.getByRole('textbox', { name: field, exact: true }).boundingBox();
+    if (!bounds) throw new Error('Time field is not visible');
+    const x = bounds.x + bounds.width / 2;
+    const y = bounds.y + bounds.height / 2;
+    if (info.project.use.hasTouch) {
+      const session = await page.context().newCDPSession(page);
+      await session.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y }] });
+      for (let step = 1; step <= 10; step++) {
+        await session.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x, y: y + dy * step / 10 }] });
+      }
+      await session.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+      await session.detach();
+    } else {
+      await page.mouse.move(x, y);
+      await page.mouse.down();
+      await page.mouse.move(x, y + dy, { steps: 10 });
+      await page.mouse.up();
+    }
+  };
+  await seconds.fill('10');
+  await swipe('Seconds', -100);
+  await expect.poll(async () => Number(await seconds.inputValue())).toBeGreaterThanOrEqual(12);
+  const increased = Number(await seconds.inputValue());
+  await swipe('Seconds', 100);
+  await expect.poll(async () => Number(await seconds.inputValue())).toBeLessThanOrEqual(increased - 2);
+  await page.getByRole('textbox', { name: 'Minutes', exact: true }).fill('00');
+  await swipe('Minutes', 60);
+  await expect.poll(async () => Number(await page.getByRole('textbox', { name: 'Minutes', exact: true }).inputValue())).toBeGreaterThanOrEqual(58);
+  await page.getByRole('textbox', { name: 'Hours', exact: true }).fill('99');
+  await swipe('Hours', -60);
+  await expect.poll(async () => Number(await page.getByRole('textbox', { name: 'Hours', exact: true }).inputValue())).toBeLessThanOrEqual(1);
+  await seconds.fill('20');
+  await page.getByRole('button', { name: 'Increase seconds', exact: true }).click();
+  await expect(seconds).toHaveValue('21');
+  await page.getByRole('button', { name: 'Decrease seconds', exact: true }).click();
+  await expect(seconds).toHaveValue('20');
+  await page.getByRole('tab', { name: 'Tone', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'OK', exact: true })).toBeInViewport();
+});
+
+test('simultaneous alarms dismiss independently and leave other countdowns running', async ({ page }) => {
+  const time = new Date();
+  await page.clock.install({ time });
+  await page.clock.pauseAt(new Date(time.getTime() + 1000));
+  await createTimer(page, 'First alarm', 1);
+  await createTimer(page, 'Second alarm', 1);
+  await page.getByRole('button', { name: 'Start long rest', exact: true }).click();
+  await page.getByRole('button', { name: 'Start First alarm', exact: true }).click();
+  await page.getByRole('button', { name: 'Start Second alarm', exact: true }).click();
+  await page.clock.fastForward(2000);
+  await expect(page.getByRole('button', { name: 'Stop First alarm', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Stop Second alarm', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Stop First alarm', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Stop First alarm', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Stop Second alarm', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Stop Second alarm', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Timer finished', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Pause long rest', exact: true })).toBeVisible();
+  await expect(page.getByTestId('countdown-sample-1')).toHaveText('02:58');
+  await page.reload();
+  await expect(page.getByRole('button', { name: 'Edit First alarm', exact: true })).toContainText('00:01');
+  await expect(page.getByRole('button', { name: 'Edit Second alarm', exact: true })).toContainText('00:01');
+});
+
 test('concurrent timers pause, resume, and reset independently', async ({ page }) => {
   const time = new Date();
   await page.clock.install({ time });
@@ -215,12 +283,14 @@ test('reset remains available at later lap boundaries and after finishing', asyn
   await expect(page.getByRole('button', { name: 'Reset Laps', exact: true })).toHaveCount(0);
   await page.getByRole('button', { name: 'Resume Laps', exact: true }).click();
   await page.clock.fastForward(2000);
+  await page.getByRole('button', { name: 'Stop Laps', exact: true }).click();
   await expect(label).toContainText('00:02');
   await expect(label.getByLabel('Round 2 of 2', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Pause Laps', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Reset Laps', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Resume Laps', exact: true }).click();
   await page.clock.fastForward(2000);
+  await page.getByRole('button', { name: 'Stop Laps', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Restart Laps', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Reset Laps', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Reset Laps', exact: true }).click();
@@ -250,31 +320,47 @@ test('repeats exactly the requested rounds and can restart', async ({ page }, in
   await createTimer(page, 'Round', 2, 3);
   await page.getByRole('button', { name: 'Start Round', exact: true }).click();
   await page.clock.fastForward(2100);
+  await page.getByRole('button', { name: 'Stop Round', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Edit Round', exact: true }).getByLabel('Round 2 of 3', { exact: true })).toBeVisible();
   await page.clock.fastForward(2100);
+  await page.getByRole('button', { name: 'Stop Round', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Edit Round', exact: true }).getByLabel('Round 3 of 3', { exact: true })).toBeVisible();
   await page.clock.fastForward(2100);
+  await page.getByRole('button', { name: 'Stop Round', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Restart Round', exact: true })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Edit Round', exact: true })).toContainText('00:00');
+  await expect(page.getByRole('button', { name: 'Edit Round', exact: true })).toContainText('00:02');
   await capture(page, info, 'completed-timer.png');
   await page.getByRole('button', { name: 'Restart Round', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Edit Round', exact: true }).getByLabel('Round 1 of 3', { exact: true })).toBeVisible();
 });
 
-test('completion plays real audio; muted timers do not', async ({ page }) => {
+test('completion loops real audio until Stop, restores duration, and respects mute', async ({ page }) => {
   await page.evaluate(() => {
     const play = HTMLMediaElement.prototype.play;
     HTMLMediaElement.prototype.play = function () {
       const muted = this.muted;
       return play.call(this).then(() => {
-        if (!muted) document.documentElement.dataset.alarmPlays = String(Number(document.documentElement.dataset.alarmPlays || 0) + 1);
+        if (!muted) {
+          document.documentElement.dataset.alarmPlays = String(Number(document.documentElement.dataset.alarmPlays || 0) + 1);
+          document.documentElement.dataset.alarmLoop = String(this.loop);
+          Object.defineProperty(window, 'alarmPlaying', { configurable: true, get: () => !this.paused && !this.ended });
+        }
       });
     };
   });
   await createTimer(page, 'Sound', 1);
   await page.getByRole('button', { name: 'Start Sound', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Restart Sound', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Timer finished', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Stop Sound', exact: true })).toBeVisible();
   await expect.poll(() => page.evaluate(() => Number(document.documentElement.dataset.alarmPlays || 0))).toBeGreaterThan(0);
+  expect(await page.evaluate(() => document.documentElement.dataset.alarmLoop)).toBe('true');
+  // The one-second countdown and short WAV have both ended; the alarm must not.
+  await page.waitForTimeout(3500);
+  expect(await page.evaluate(() => Reflect.get(window, 'alarmPlaying'))).toBe(true);
+  await page.getByRole('button', { name: 'Stop Sound', exact: true }).click();
+  await expect.poll(() => page.evaluate(() => Reflect.get(window, 'alarmPlaying'))).toBe(false);
+  await expect(page.getByRole('button', { name: 'Edit Sound', exact: true })).toContainText('00:01');
+  await expect(page.getByRole('button', { name: 'Restart Sound', exact: true })).toBeVisible();
   await reset(page, 'Sound');
   await page.getByRole('button', { name: 'Edit Sound', exact: true }).click();
   await page.getByRole('tab', { name: 'Tone', exact: true }).click();
@@ -282,6 +368,7 @@ test('completion plays real audio; muted timers do not', async ({ page }) => {
   await page.getByRole('button', { name: 'OK', exact: true }).click();
   const before = await page.evaluate(() => Number(document.documentElement.dataset.alarmPlays || 0));
   await page.getByRole('button', { name: 'Start Sound', exact: true }).click();
+  await page.getByRole('button', { name: 'Stop Sound', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Restart Sound', exact: true })).toBeVisible();
   expect(await page.evaluate(() => Number(document.documentElement.dataset.alarmPlays || 0))).toBe(before);
 });
@@ -300,6 +387,7 @@ test('hidden but unsuspended browser tabs still attempt alarms', async ({ page }
     Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'hidden' });
     document.dispatchEvent(new Event('visibilitychange'));
   });
+  await page.getByRole('button', { name: 'Stop Background', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Restart Background', exact: true })).toBeVisible();
   await expect.poll(() => page.evaluate(() => document.documentElement.dataset.hiddenAlarm)).toBe('attempted');
 });

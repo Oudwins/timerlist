@@ -2,8 +2,23 @@ import * as Notifications from 'expo-notifications';
 import { AndroidImportance, AndroidNotificationVisibility, AndroidAudioUsage, AndroidAudioContentType } from 'expo-notifications';
 import { AppState, Platform } from 'react-native';
 
-import { alarmPlan } from './alarm-plan';
+import { alarmPlan, type TimerAlarm } from './alarm-plan';
 import type { Timer } from './timers';
+
+export async function presentAlarm(_alarm: TimerAlarm) { return; }
+export function getRingingAlarms(): TimerAlarm[] { return []; }
+export function subscribeRingingAlarms(_onChange: (alarms: TimerAlarm[]) => void) { return () => {}; }
+
+export async function dismissAlarm(id: string, cancelScheduled = false) {
+  const notifications = await Notifications.getPresentedNotificationsAsync();
+  await Promise.all(notifications.filter(item => item.request.content.data?.timerId === id)
+    .map(item => Notifications.dismissNotificationAsync(item.request.identifier)));
+  if (cancelScheduled) {
+    const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+    await Promise.all(scheduled.filter(item => item.content.data?.timerId === id)
+      .map(item => Notifications.cancelScheduledNotificationAsync(item.identifier)));
+  }
+}
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({

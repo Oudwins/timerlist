@@ -42,7 +42,7 @@ test('repetitions advance without timer drift', () => {
   const done = advanceTimer(next, 16000);
   assert.equal(done.status, 'finished');
   assert.equal(done.completed, 3);
-  assert.equal(done.remaining, 0);
+  assert.equal(done.remaining, 5000);
 });
 
 test('background catch-up skips every elapsed round, not just one', () => {
@@ -59,6 +59,17 @@ test('a finished timer restarts with every round available', () => {
   assert.equal(restarted.completed, 0);
   assert.equal(restarted.deadline, 25000);
   assert.equal(restarted.status, 'running');
+});
+
+test('completion restores the saved duration and does not restart itself', () => {
+  const timer = make();
+  const done = advanceTimer(startTimer(timer, 1000), 6000);
+  assert.equal(done.remaining, timer.duration * 1000);
+  assert.equal(remainingTime(done, 100000), timer.duration * 1000);
+  assert.equal(done.deadline, null);
+  assert.equal(advanceTimer(done, 100000), done);
+  assert.ok(isTimer(done));
+  assert.deepEqual(alarmPlan([done], 100000), []);
 });
 
 test('reset preserves definition but clears runtime state', () => {

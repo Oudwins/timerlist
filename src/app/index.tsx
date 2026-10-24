@@ -67,5 +67,12 @@ function TimerListScreen() {
       <MenuItem icon="volume" onPress={() => { app.alarm.unlock(); void app.alarm.play('beep'); }}>Test alarm sound</MenuItem>
       {Platform.OS !== 'web' && <><MenuItem icon="bell" onPress={() => { void app.allowAlarms(); }}>Enable background alarms</MenuItem><MenuItem icon="settings" onPress={() => { void Linking.openSettings(); }}>System settings</MenuItem></>}
     </Dialog>}
+    {app.ringing.length > 0 && <Dialog title="Timer finished" onClose={() => app.ringing.forEach(item => app.dismiss(item.timer.id))}>
+      {app.ringing.map(item => <View key={item.timer.id} className="mb-3 gap-3">
+        <Text className="font-body text-xl text-cream">{item.timer.label}</Text>
+        {item.timer.repeats > 1 && <Text className="font-body text-sm text-muted">Round {item.cycle} of {item.timer.repeats} complete</Text>}
+        <Pressable accessibilityRole="button" accessibilityLabel={`Stop ${item.timer.label}`} onPress={() => app.dismiss(item.timer.id)} className="min-h-12 items-center justify-center rounded-full bg-orange px-6"><Text className="font-medium text-base text-white">STOP</Text></Pressable>
+      </View>)}
+    </Dialog>}
   </SafeAreaView>;
 }

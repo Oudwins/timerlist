@@ -2,7 +2,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState, Platform } from 'react-native';
 
-import { syncAlarms, requestAlarmPermission } from '@/lib/notifications';
+import { dismissAlarm, getRingingAlarms, presentAlarm, requestAlarmPermission, subscribeRingingAlarms, syncAlarms } from '@/lib/notifications';
+import { alarmPlan, type TimerAlarm } from '@/lib/alarm-plan';
 import { advanceTimer, createTimer, isTimer, moveTimer, pauseTimer, resetTimer, sampleTimers, startTimer, type Timer, type TimerDefinition } from '@/lib/timers';
 import { useAlarm } from './use-alarm';
 
@@ -15,14 +16,44 @@ export function useTimers() {
   const [now, setNow] = useState(Date.now);
   const [notice, setNotice] = useState('');
   const [storageSafe, setStorageSafe] = useState(true);
+  const [ringing, setRinging] = useState<TimerAlarm[]>([]);
   const alarm = useAlarm(setNotice);
-  const ring = useRef(alarm.ring);
+  const { ring: ringAlarm, stop: stopAlarm } = alarm;
   const storageQueue = useRef(Promise.resolve());
   const notificationQueue = useRef(Promise.resolve());
   const [permissionReady, setPermissionReady] = useState(false);
   const running = timers.some(timer => timer.status === 'running');
 
-  useEffect(() => { ring.current = alarm.ring; }, [alarm.ring]);
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+    const refresh = () => setRinging(getRingingAlarms());
+    const unsubscribe = subscribeRingingAlarms(setRinging);
+    refresh();
+    const subscription = AppState.addEventListener('change', state => { if (state === 'active') refresh(); });
+    return () => { unsubscribe(); subscription.remove(); };
+  }, []);
+
+  useEffect(() => {
+    if (Platform.OS === 'android') return; // The native service owns playback, including in the foreground.
+    const audible = ringing.findLast(item => item.timer.sound) ?? ringing.at(-1);
+    if (audible) ringAlarm(audible.timer);
+    else stopAlarm();
+  }, [ringing, ringAlarm, stopAlarm]);
+
+  const dismiss = useCallback((id: string, cancelScheduled = false) => {
+    if (Platform.OS !== 'android') setRinging(items => items.filter(item => item.timer.id !== id));
+    void dismissAlarm(id, cancelScheduled).catch(() => setNotice('Could not stop the alarm. Use Stop in the notification.'));
+  }, []);
+
+  const notify = useCallback((timer: Timer, time: number) => {
+    const completed = alarmPlan([timer], 0).filter(item => item.date <= time).at(-1);
+    if (!completed) return;
+    if (Platform.OS === 'android') {
+      void presentAlarm(completed).catch(() => setNotice('Could not play the alarm. Check system alarm permissions.'));
+    } else {
+      setRinging(items => [...items.filter(item => item.timer.id !== timer.id), completed]);
+    }
+  }, []);
 
   const commit = useCallback((next: Timer[]) => {
     if (next === current.current) return;
@@ -71,7 +102,7 @@ export function useTimers() {
         const advanced = advanceTimer(timer, time);
         if (advanced !== timer) {
           changed = true;
-          if (Platform.OS === 'web' || AppState.currentState === 'active' || AppState.currentState === null) ring.current(advanced);
+          if (Platform.OS === 'web' || AppState.currentState === 'active' || AppState.currentState === null) notify(timer, time);
         }
         return advanced;
       });
@@ -81,7 +112,7 @@ export function useTimers() {
     const interval = setInterval(tick, 100);
     const subscription = AppState.addEventListener('change', state => { if (state === 'active') tick(); });
     return () => { clearInterval(interval); subscription.remove(); };
-  }, [ready, running, commit]);
+  }, [ready, running, commit, notify]);
 
   const allowAlarms = useCallback(async () => {
     try {
@@ -103,6 +134,7 @@ export function useTimers() {
   const toggle = (id: string) => {
     const timer = current.current.find(item => item.id === id);
     if (!timer) return;
+    dismiss(id, true);
     if (timer.status !== 'running') prepareStart();
     const time = Date.now();
     setNow(time);
@@ -110,14 +142,15 @@ export function useTimers() {
   };
 
   const save = (definition: TimerDefinition, id?: string) => {
+    if (id) dismiss(id, true);
     const timer = createTimer({ ...definition, label: definition.label.trim() }, id);
     commit(id ? current.current.map(item => item.id === id ? timer : item) : [...current.current, timer]);
   };
 
   return {
-    timers, now, ready, notice, setNotice, storageSafe, save, toggle, alarm, allowAlarms,
-    reset: (id: string) => commit(current.current.map(timer => timer.id === id ? resetTimer(timer) : timer)),
-    remove: (id: string) => commit(current.current.filter(timer => timer.id !== id)),
+    timers, now, ready, notice, setNotice, storageSafe, save, toggle, alarm, allowAlarms, ringing, dismiss,
+    reset: (id: string) => { dismiss(id, true); commit(current.current.map(timer => timer.id === id ? resetTimer(timer) : timer)); },
+    remove: (id: string) => { dismiss(id, true); commit(current.current.filter(timer => timer.id !== id)); },
     duplicate: (id: string) => {
       const timer = current.current.find(item => item.id === id);
       if (timer) commit([...current.current, createTimer({ ...timer, label: `${timer.label} copy` })]);

@@ -8,6 +8,7 @@ A timer app for Android, iOS, and the browser, styled with **NativeWind**. The l
 - Run and pause several timers independently.
 - Pause, resume, reset, and restart completed timers.
 - Choose from 20 colors and three locally bundled alarm sounds; preview sounds, mute, or enable vibration.
+- Swipe the hours/minutes/seconds up or down, tap adjacent values, or type a duration directly.
 - Run a timer **1–99 times total**, with automatic next rounds and an alert at every boundary.
 - Reorder with accessible up/down controls, or sort by label/duration.
 - Save definitions, ordering, and running/paused state on the device. Reloading does not reset countdowns.
@@ -104,12 +105,12 @@ To test background behavior, create a short timer, allow notification/exact-alar
 
 ## Alarm behavior
 
-- **Android:** upcoming repeat alerts are scheduled with the operating system, including while the screen is locked or the app is backgrounded. Allow notification and exact-alarm permissions. `USE_EXACT_ALARM` is declared because timing is the app’s core purpose; Android 12 devices may still require an explicit grant. Pausing, resetting, editing, or deleting cancels the corresponding scheduled alerts.
+- **Android:** upcoming repeat alerts are scheduled with the operating system, including while the screen is locked or the app is backgrounded. A local foreground alarm service loops sound/vibration until **Stop** in the notification or in-app popup. Multiple alarms can be dismissed separately in the app; notification Stop dismisses all ringing alarms without stopping other countdowns. Allow notification and exact-alarm permissions. `USE_EXACT_ALARM` is declared because timing is the app’s core purpose; Android 12 devices may still require an explicit grant. Pausing, resetting, editing, or deleting cancels the corresponding scheduled alerts. Custom native code lives in `modules/timer-alarms/` and requires rebuilding the APK, not Expo Go.
 - **iOS:** the same local-notification mechanism is used, with the system limit of 64 pending alerts across the app. Longer sessions require keeping the app open; a warning is shown if the queue is exceeded. iOS builds/signing are not part of the Android release workflow.
-- **Browser:** keep the tab open and the device awake. Browsers can throttle or suspend tabs, so a website cannot guarantee locked-screen/background alarms. The app requests a screen wake lock where supported. Closed tabs cannot play sound; reopening reconciles elapsed rounds from their saved deadlines.
+- **Browser:** the completion popup loops audio until Stop. Keep the tab open and the device awake. Browsers can throttle or suspend tabs, so a website cannot guarantee locked-screen/background alarms. The app requests a screen wake lock where supported. Closed tabs cannot play sound; reopening reconciles elapsed rounds from their saved deadlines.
 - System volume, Do Not Disturb, battery restrictions, and force-stopping the app can affect native alerts. Use the app’s alarm settings to test sound and open system settings.
 
-Countdowns use wall-clock deadlines, not accumulated interval ticks, so delayed callbacks do not cause drift. Finite repeat schedules are queued in advance; no network connection, background polling service, or push notification account is needed. Data stays in local AsyncStorage; clearing app/site data removes it. Unreadable stored data is preserved rather than silently overwritten.
+Completed timers immediately display their saved duration again and are ready to restart; dismissing an alarm does not start another countdown. Countdowns use wall-clock deadlines, not accumulated interval ticks, so delayed callbacks do not cause drift. Finite repeat schedules are queued in advance; no network connection, background polling service, or push notification account is needed. Data stays in local AsyncStorage; clearing app/site data removes it. Unreadable stored data is preserved rather than silently overwritten.
 
 ## Assets and dependencies
 

@@ -1,5 +1,12 @@
 import type { Timer } from './timers';
 
+export type TimerAlarm = {
+  identifier: string;
+  date: number;
+  cycle: number;
+  timer: Pick<Timer, 'id' | 'label' | 'tone' | 'sound' | 'vibrate' | 'repeats'>;
+};
+
 export function alarmPlan(timers: Timer[], now: number) {
   return timers.flatMap(timer => {
     if (timer.status !== 'running' || timer.deadline === null) return [];

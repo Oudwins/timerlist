@@ -80,7 +80,7 @@ export function advanceTimer(timer: Timer, now: number): Timer {
   const elapsed = 1 + Math.floor((now - timer.deadline) / (timer.duration * 1000));
   const completed = Math.min(timer.repeats, timer.completed + elapsed);
   if (completed === timer.repeats) {
-    return { ...timer, completed, status: 'finished', deadline: null, remaining: 0 };
+    return { ...timer, completed, status: 'finished', deadline: null, remaining: timer.duration * 1000 };
   }
   return { ...timer, completed, deadline: timer.deadline + elapsed * timer.duration * 1000 };
 }

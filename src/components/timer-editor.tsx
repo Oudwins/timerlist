@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Switch, Text, TextInput, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Keyboard, KeyboardAvoidingView, Modal, PanResponder, Platform, Pressable, ScrollView, Switch, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { palette } from '@/constants/design';
@@ -11,12 +11,34 @@ const tabs: { name: 'Time' | 'Repeat' | 'Color' | 'Tone'; icon: IconName }[] = [
   { name: 'Time', icon: 'clock' }, { name: 'Repeat', icon: 'repeat' }, { name: 'Color', icon: 'palette' }, { name: 'Tone', icon: 'bell' },
 ];
 
-function NumberField({ label, value, onChange, max, selected }: { label: string; value: string; onChange: (value: string) => void; max: number; selected?: boolean }) {
+function NumberField({ label, value, onChange, max, selected, onDragChange }: { label: string; value: string; onChange: (value: string) => void; max: number; selected?: boolean; onDragChange: (dragging: boolean) => void }) {
+  const current = useRef(value);
+  useEffect(() => { current.current = value; }, [value]);
+  const start = useRef(0);
+  const onGrant = useCallback(() => {
+    start.current = Number(current.current) || 0;
+    Keyboard.dismiss();
+    onDragChange(true);
+  }, [onDragChange]);
+  const onMove = useCallback((_: unknown, { dy }: { dy: number }) => {
+    const next = ((start.current + Math.trunc(-dy / 28)) % (max + 1) + max + 1) % (max + 1);
+    onChange(String(next).padStart(2, '0'));
+  }, [max, onChange]);
+  // PanResponder.create registers these callbacks; it does not invoke them during render.
+  // eslint-disable-next-line react-hooks/refs
+  const gesture = useMemo(() => PanResponder.create({
+    onMoveShouldSetPanResponderCapture: (_, { dx, dy }) => Math.abs(dy) > 6 && Math.abs(dy) > Math.abs(dx),
+    onPanResponderGrant: onGrant,
+    onPanResponderMove: onMove,
+    onPanResponderRelease: () => onDragChange(false),
+    onPanResponderTerminate: () => onDragChange(false),
+    onPanResponderTerminationRequest: () => false,
+  }), [onGrant, onMove, onDragChange]);
   const step = (direction: number) => String((Number(value) + direction + max + 1) % (max + 1)).padStart(2, '0');
-  return <View className="flex-1 items-center">
+  return <View testID={`picker-${label.toLowerCase()}`} className="flex-1 items-center web:touch-none" {...gesture.panHandlers}>
     <Text className="mb-3 font-body text-sm text-muted">{label}</Text>
     <Pressable accessibilityRole="button" accessibilityLabel={`Decrease ${label.toLowerCase()}`} onPress={() => onChange(step(-1))} className="h-11 justify-center"><Text className="font-body text-[23px] text-faint">{step(-1)}</Text></Pressable>
-    <TextInput accessibilityLabel={label} className={`h-16 w-16 rounded-full border-2 text-center font-body text-[25px] text-cream ${selected ? 'border-orange bg-orange' : 'border-muted/50'}`} keyboardType="number-pad" inputMode="numeric" selectTextOnFocus maxLength={2} value={value} onChangeText={text => onChange(text.replace(/\D/g, '').slice(0, 2))} onBlur={() => onChange(String(Math.min(max, Number(value) || 0)).padStart(2, '0'))} />
+    <TextInput accessibilityLabel={label} className={`h-16 w-16 rounded-full border-2 text-center font-body text-[25px] text-cream ${selected ? 'border-orange bg-orange' : 'border-muted/50'}`} keyboardType="number-pad" inputMode="numeric" selectTextOnFocus={Platform.OS !== 'web'} maxLength={2} value={value} onChangeText={text => onChange(text.replace(/\D/g, '').slice(0, 2))} onBlur={() => onChange(String(Math.min(max, Number(value) || 0)).padStart(2, '0'))} />
     <Pressable accessibilityRole="button" accessibilityLabel={`Increase ${label.toLowerCase()}`} onPress={() => onChange(step(1))} className="h-11 justify-center"><Text className="font-body text-[23px] text-faint">{step(1)}</Text></Pressable>
   </View>;
 }
@@ -37,6 +59,7 @@ export function TimerEditor({ timer, onClose, onSave, onPreview }: {
   const [tab, setTab] = useState<(typeof tabs)[number]['name']>('Time');
   const [showTones, setShowTones] = useState(false);
   const [error, setError] = useState('');
+  const [draggingTime, setDraggingTime] = useState(false);
   const insets = useSafeAreaInsets();
   const duration = Number(hours) * 3600 + Number(minutes) * 60 + Number(seconds);
   const count = Math.max(1, Math.min(99, Number(repeats) || 1));
@@ -66,14 +89,14 @@ export function TimerEditor({ timer, onClose, onSave, onPreview }: {
             </Pressable>)}
           </View>
         </View>
-        <ScrollView keyboardShouldPersistTaps="handled" className="min-h-0 shrink" contentContainerClassName="min-h-[320px] px-7 py-7">
+        <ScrollView keyboardShouldPersistTaps="handled" scrollEnabled={!draggingTime} disableScrollViewPanResponder={tab === 'Time'} className="min-h-0 shrink" contentContainerClassName="min-h-[320px] px-7 py-7">
           {tab === 'Time' && <View className="items-center">
             <View className="w-full flex-row items-center gap-1">
-              <NumberField label="Hours" value={hours} onChange={setHours} max={99} />
+              <NumberField label="Hours" value={hours} onChange={setHours} max={99} onDragChange={setDraggingTime} />
               <Text className="pt-6 font-body text-2xl text-muted">:</Text>
-              <NumberField label="Minutes" value={minutes} onChange={setMinutes} max={59} />
+              <NumberField label="Minutes" value={minutes} onChange={setMinutes} max={59} onDragChange={setDraggingTime} />
               <Text className="pt-6 font-body text-2xl text-muted">:</Text>
-              <NumberField label="Seconds" value={seconds} onChange={setSeconds} max={59} selected />
+              <NumberField label="Seconds" value={seconds} onChange={setSeconds} max={59} selected onDragChange={setDraggingTime} />
             </View>
             <IconButton icon="reset" label="Clear time" color={palette.text} onPress={() => { setHours('00'); setMinutes('00'); setSeconds('00'); }} className="mt-5" />
           </View>}
