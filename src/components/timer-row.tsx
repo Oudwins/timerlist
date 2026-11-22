@@ -9,7 +9,8 @@ import { Icon } from './icon';
 
 // DM Sans has no tabular figures, so each digit gets a fixed-width cell to keep the countdown from shifting as it ticks.
 function Digits({ children, size, color }: { children: string; size: number; color: string }) {
-  return children.split('').map((character, index) => <Text key={index} className="text-center font-body" style={{ color, fontSize: size, lineHeight: 40, width: /\d/.test(character) ? size * 0.61 : undefined }}>{character}</Text>);
+  const { fontScale } = useWindowDimensions();
+  return children.split('').map((character, index) => <Text key={index} className="text-center font-body" style={{ color, fontSize: size, lineHeight: 40 * fontScale, width: /\d/.test(character) ? size * 0.65 * fontScale : undefined }}>{character}</Text>);
 }
 
 export const TimerRow = memo(function TimerRow({ timer, now, index, total, arranging, onToggle, onEdit, onReset, onMore, onMove }: {
@@ -17,7 +18,8 @@ export const TimerRow = memo(function TimerRow({ timer, now, index, total, arran
   onToggle: () => void; onEdit: () => void; onReset: () => void; onMore: () => void; onMove: (direction: -1 | 1) => void;
 }) {
   const running = timer.status === 'running';
-  const narrow = useWindowDimensions().width < 360;
+  const { width, fontScale } = useWindowDimensions();
+  const narrow = width < 360;
   const active = running || timer.status === 'paused';
   const remaining = remainingTime(timer, now);
   const resettable = canReset(timer, now);
@@ -36,7 +38,7 @@ export const TimerRow = memo(function TimerRow({ timer, now, index, total, arran
     </Pressable>
     <Pressable accessibilityRole="button" accessibilityLabel={`Edit ${timer.label}`} disabled={arranging} onPress={onEdit} className="min-w-0 flex-1 justify-center active:opacity-70">
       <Text numberOfLines={1} className="font-body text-[19px] leading-7 text-cream">{timer.label}</Text>
-      <View className="h-10 flex-row items-baseline">
+      <View className="flex-row items-baseline" style={{ height: 40 * fontScale }}>
         <View testID={`countdown-${timer.id}`} className="flex-row"><Digits size={narrow ? 22 : timer.duration >= 3600 || arranging ? 24 : 31} color={palette.text}>{formatTime(Math.floor(remaining / 1000) * 1000)}</Digits></View>
         {active && !arranging && !(narrow && timer.duration >= 3600) && <Digits size={narrow ? 14 : 20} color={palette.muted}>{`.${Math.floor(remaining % 1000 / 100)}`}</Digits>}
       </View>

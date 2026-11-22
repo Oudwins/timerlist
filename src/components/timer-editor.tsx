@@ -42,7 +42,7 @@ function NumberField({ label, value, onChange, max, onDragChange }: { label: str
   return <View testID={`picker-${label.toLowerCase()}`} className="flex-1 items-center web:touch-none" {...gesture.panHandlers}>
     <Text className="mb-3 font-body text-sm text-muted">{label}</Text>
     <Pressable accessibilityRole="button" accessibilityLabel={`Decrease ${label.toLowerCase()}`} onPress={() => onChange(step(-1))} className="h-11 w-16 items-center justify-center active:opacity-60"><Text className="font-body text-[22px] text-faint">{step(-1)}</Text></Pressable>
-    <TextInput accessibilityLabel={label} className={`h-16 w-16 rounded-full border-2 text-center font-body text-[25px] text-cream web:outline-none ${focused ? 'border-cream' : 'border-line'}`} onFocus={() => setFocused(true)} keyboardType="number-pad" inputMode="numeric" selectTextOnFocus={Platform.OS !== 'web'} maxLength={2} value={value} onChangeText={text => onChange(text.replace(/\D/g, '').slice(0, 2))} onBlur={() => { setFocused(false); onChange(String(Math.min(max, Number(value) || 0)).padStart(2, '0')); }} />
+    <TextInput accessibilityLabel={label} className={`h-16 w-16 rounded-full border-2 text-center font-body text-[25px] text-cream web:outline-none ${focused ? 'border-cream' : 'border-muted/50'}`} onFocus={() => setFocused(true)} keyboardType="number-pad" inputMode="numeric" selectTextOnFocus={Platform.OS !== 'web'} maxLength={2} value={value} onChangeText={text => onChange(text.replace(/\D/g, '').slice(0, 2))} onBlur={() => { setFocused(false); onChange(String(Math.min(max, Number(value) || 0)).padStart(2, '0')); }} />
     <Pressable accessibilityRole="button" accessibilityLabel={`Increase ${label.toLowerCase()}`} onPress={() => onChange(step(1))} className="h-11 w-16 items-center justify-center active:opacity-60"><Text className="font-body text-[22px] text-faint">{step(1)}</Text></Pressable>
   </View>;
 }
@@ -86,7 +86,7 @@ export function TimerEditor({ timer, onClose, onSave, onPreview }: {
             <TextInput accessibilityLabel="Timer label" autoFocus={!timer && Platform.OS === 'web'} placeholder="Label" placeholderTextColor={`${ink}99`} maxLength={60} value={label} onChangeText={text => { setLabel(text); setError(''); }} returnKeyType="done" onSubmitEditing={save} className="min-h-11 flex-1 font-body text-[22px] web:outline-none" style={{ color: ink }} selectionColor={ink} />
           </View>
           <View accessibilityRole="tablist" className="-mx-3 flex-row">
-            {tabs.map(item => <Pressable key={item.name} accessibilityRole="tab" aria-selected={tab === item.name} onPress={() => setTab(item.name)} className={`flex-1 items-center gap-2 pb-4 pt-3 active:opacity-60 ${tab === item.name ? '' : 'opacity-70'}`}>
+            {tabs.map(item => <Pressable key={item.name} accessibilityRole="tab" aria-selected={tab === item.name} onPress={() => setTab(item.name)} className={`flex-1 items-center gap-2 pb-4 pt-3 active:opacity-60`}>
               <Icon name={item.icon} size={22} color={ink} />
               <Text className="font-medium text-sm" style={{ color: ink }}>{item.name}</Text>
               {tab === item.name && <View className="absolute bottom-0 h-[3px] w-8 rounded-t-full" style={{ backgroundColor: ink }} />}
@@ -118,9 +118,9 @@ export function TimerEditor({ timer, onClose, onSave, onPreview }: {
           {tab === 'Tone' && <View>
             <View className="min-h-12 flex-row items-center gap-3"><Icon name="volume" color={palette.muted} size={20} /><Text className="flex-1 font-body text-base text-cream">Sound</Text><Switch accessibilityLabel="Alarm sound" value={sound} onValueChange={setSound} {...switchColors} thumbColor={sound ? palette.orange : palette.muted} /></View>
             {Platform.OS !== 'web' && <View className="min-h-12 flex-row items-center gap-3"><Icon name="vibrate" color={palette.muted} size={20} /><Text className="flex-1 font-body text-base text-cream">Vibrate</Text><Switch accessibilityLabel="Vibration" value={vibrate} onValueChange={setVibrate} {...switchColors} thumbColor={vibrate ? palette.orange : palette.muted} /></View>}
-            <View accessibilityRole="radiogroup" accessibilityLabel="Alarm tone" className={`mt-3 border-t border-line pt-3 ${sound ? '' : 'opacity-40'}`}>
+            <View accessibilityRole="radiogroup" accessibilityLabel="Alarm tone" className="mt-3 border-t border-line pt-3">
               {tones.map(item => <View key={item.id} className="flex-row items-center">
-                <Pressable accessibilityRole="radio" accessibilityLabel={item.name} aria-checked={tone === item.id} disabled={!sound} onPress={() => setTone(item.id)} className="min-h-12 flex-1 flex-row items-center gap-3 active:opacity-60">
+                <Pressable accessibilityRole="radio" accessibilityLabel={item.name} aria-checked={tone === item.id} disabled={!sound} onPress={() => setTone(item.id)} className={`min-h-12 flex-1 flex-row items-center gap-3 active:opacity-60 ${sound ? '' : 'opacity-40'}`}>
                   <View className="w-5">{tone === item.id && <Icon name="check" size={20} color={palette.orange} />}</View>
                   <Text className={`font-body text-base ${tone === item.id ? 'text-cream' : 'text-muted'}`}>{item.name}</Text>
                 </Pressable>
