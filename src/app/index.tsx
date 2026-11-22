@@ -33,6 +33,8 @@ function TimerListScreen() {
   const [menuId, setMenuId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<Timer | null>(null);
   const [settings, setSettings] = useState(false);
+  // The row last moved in reorder mode stays marked, so it is easy to follow.
+  const [moved, setMoved] = useState<string | null>(null);
   // Ordering needs at least two timers; every entry point follows this one rule.
   const canOrder = app.ready && app.timers.length > 1;
   const arranging = reordering && canOrder;
@@ -54,7 +56,7 @@ function TimerListScreen() {
         {app.storageSafe ? <><Text className="font-body text-base text-muted">No timers yet</Text><Button icon="plus" secondary onPress={() => setEditor('new')}>New timer</Button></>
           : <Text accessibilityRole="alert" className="max-w-[300px] text-center font-body text-base leading-6 text-muted">{app.notice}</Text>}
       </View> : <ScrollView testID="timer-list" className="min-h-0 flex-1" contentContainerClassName="px-4 pb-4 pt-2" showsVerticalScrollIndicator={false}>
-        {app.timers.map((timer, index) => <TimerRow key={timer.id} timer={timer} now={timer.status === 'running' ? app.now : 0} index={index} total={app.timers.length} arranging={arranging} onToggle={() => app.toggle(timer.id)} onEdit={() => setEditor(timer)} onReset={() => app.reset(timer.id)} onMore={() => setMenuId(timer.id)} onMove={direction => app.move(timer.id, direction)} />)}
+        {app.timers.map((timer, index) => <TimerRow key={timer.id} timer={timer} now={timer.status === 'running' ? app.now : 0} index={index} total={app.timers.length} arranging={arranging} moved={arranging && moved === timer.id} onToggle={() => app.toggle(timer.id)} onEdit={() => setEditor(timer)} onReset={() => app.reset(timer.id)} onMore={() => setMenuId(timer.id)} onMove={direction => { app.move(timer.id, direction); setMoved(timer.id); }} />)}
       </ScrollView>}
       {!!app.notice && app.storageSafe && <View accessibilityRole="alert" className="flex-row items-center gap-2 bg-raised py-3 pl-4 pr-2"><Text className="flex-1 font-body text-sm leading-5 text-cream">{app.notice}</Text><IconButton icon="close" label="Dismiss notice" onPress={() => app.setNotice('')} /></View>}
     </View>
@@ -68,7 +70,7 @@ function TimerListScreen() {
     </Dialog>}
     {deleting && <Dialog title="Delete timer?" onClose={() => setDeleting(null)}><Text className="mb-6 font-body text-base text-muted">“{deleting.label}” will be deleted.</Text><View className="-mr-3 flex-row justify-end gap-2"><Pressable accessibilityRole="button" onPress={() => setDeleting(null)} className="min-h-12 justify-center rounded-xl px-3 hover:bg-white/5 active:bg-white/10 web:transition-colors"><Text className="font-medium text-base text-cream">Cancel</Text></Pressable><Pressable accessibilityRole="button" onPress={() => { app.remove(deleting.id); setDeleting(null); }} className="min-h-12 justify-center rounded-xl px-3 hover:bg-white/5 active:bg-white/10 web:transition-colors"><Text className="font-medium text-base text-danger">Delete</Text></Pressable></View></Dialog>}
     {settings && <Dialog title="Menu" onClose={() => setSettings(false)}>
-      {canOrder && <MenuItem icon="grip" onPress={() => { setReordering(true); setSettings(false); }}>Reorder timers</MenuItem>}
+      {canOrder && !arranging && <MenuItem icon="grip" onPress={() => { setReordering(true); setSettings(false); }}>Reorder timers</MenuItem>}
       <MenuItem icon="volume" onPress={() => { app.alarm.unlock(); void app.alarm.play('beep'); }}>Test alarm sound</MenuItem>
       {Platform.OS !== 'web' && <>{!app.permissionReady && <MenuItem icon="bell" onPress={() => { void app.allowAlarms(); }}>Enable background alarms</MenuItem>}<MenuItem icon="settings" onPress={() => { void Linking.openSettings(); }}>System settings</MenuItem></>}
     </Dialog>}

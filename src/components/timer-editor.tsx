@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { type ComponentRef, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Keyboard, KeyboardAvoidingView, Modal, PanResponder, Platform, Pressable, ScrollView, Switch, Text, TextInput, View } from 'react-native';
 import { useReducedMotion } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -63,6 +63,8 @@ export function TimerEditor({ timer, onClose, onSave, onPreview }: {
   const [vibrate, setVibrate] = useState(initial.vibrate);
   const [tab, setTab] = useState<(typeof tabs)[number]['name']>('Time');
   const [error, setError] = useState('');
+  const [nameFocused, setNameFocused] = useState(false);
+  const nameRef = useRef<ComponentRef<typeof TextInput>>(null);
   const [draggingTime, setDraggingTime] = useState(false);
   const insets = useSafeAreaInsets();
   const reduceMotion = useReducedMotion();
@@ -71,7 +73,7 @@ export function TimerEditor({ timer, onClose, onSave, onPreview }: {
   const count = Math.max(1, Math.min(99, Number(repeats) || 1));
 
   const save = () => {
-    if (!label.trim()) { setError('Enter a timer name.'); return; }
+    if (!label.trim()) { setError('Enter a timer name.'); nameRef.current?.focus(); return; }
     if (!duration || Number(minutes) > 59 || Number(seconds) > 59) { setError('Set a time above zero.'); setTab('Time'); return; }
     if (!Number.isInteger(Number(repeats)) || Number(repeats) < 1 || Number(repeats) > 99) { setError('Choose 1–99 rounds.'); setTab('Repeat'); return; }
     onSave({ label: label.trim(), duration, repeats: count, color, tone, sound, vibrate }, timer?.id);
@@ -83,9 +85,9 @@ export function TimerEditor({ timer, onClose, onSave, onPreview }: {
       <Pressable accessibilityLabel="Close timer editor" onPress={onClose} className="absolute inset-0" />
       <View accessibilityViewIsModal className="max-h-[94%] w-full max-w-[480px] overflow-hidden rounded-t-[24px] bg-surface sm:rounded-[24px]" style={{ paddingBottom: Math.max(insets.bottom, 8) }}>
         <View className="px-7 pt-9" style={{ backgroundColor: color }}>
-          <View className="mb-6 flex-row items-center gap-2 border-b pb-1" style={{ borderColor: ink }}>
+          <View className={`mb-6 flex-row items-center gap-2 ${nameFocused ? 'border-b-2 pb-[3px]' : 'border-b pb-1'}`} style={{ borderColor: ink }}>
             <Icon name="tag" size={22} color={ink} />
-            <TextInput accessibilityLabel="Timer name" autoFocus={!timer && Platform.OS === 'web'} placeholder="Timer name" placeholderTextColor={`${ink}CC`} maxLength={60} value={label} onChangeText={text => { setLabel(text); setError(''); }} returnKeyType="done" onSubmitEditing={save} className="min-h-11 flex-1 font-body text-[22px]" style={{ color: ink, outlineColor: ink }} selectionColor={ink} />
+            <TextInput ref={nameRef} accessibilityLabel="Timer name" autoFocus={!timer && Platform.OS === 'web'} placeholder="Timer name" placeholderTextColor={ink} onFocus={() => setNameFocused(true)} onBlur={() => setNameFocused(false)} maxLength={60} value={label} onChangeText={text => { setLabel(text); setError(''); }} returnKeyType="done" onSubmitEditing={save} className="min-h-11 flex-1 font-body text-[22px] web:outline-none" style={{ color: ink }} selectionColor={ink} />
           </View>
           <View accessibilityRole="tablist" className="-mx-3 flex-row">
             {tabs.map(item => <Pressable key={item.name} accessibilityRole="tab" aria-selected={tab === item.name} onPress={() => setTab(item.name)} className="flex-1 items-center gap-2 pb-4 pt-3 active:opacity-60" style={{ outlineColor: ink }}>

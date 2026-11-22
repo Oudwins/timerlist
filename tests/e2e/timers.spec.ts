@@ -91,6 +91,7 @@ test('validates labels and zero durations; cancel does not save', async ({ page 
   await page.getByRole('button', { name: 'Add timer', exact: true }).click();
   await page.getByRole('button', { name: 'Save', exact: true }).click();
   await expect(page.getByRole('alert')).toHaveText('Enter a timer name.');
+  await expect(page.getByRole('textbox', { name: 'Timer name' })).toBeFocused();
   await page.getByRole('textbox', { name: 'Timer name' }).fill('Invalid');
   await page.getByRole('button', { name: 'Clear time', exact: true }).click();
   await page.getByRole('button', { name: 'Save', exact: true }).click();
@@ -477,6 +478,10 @@ test('reorder mode shows only move controls and Done', async ({ page }, info) =>
   await expect(page.getByRole('button', { name: /^Reset / })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Edit rest', exact: true })).toBeDisabled();
   await capture(page, info, 'reorder-mode.png');
+  await page.getByRole('button', { name: 'Menu', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Test alarm sound', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Reorder timers', exact: true })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Close dialog', exact: true }).click();
   await page.getByRole('button', { name: 'Done reordering', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Options for rest', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Reset rest', exact: true })).toBeVisible();
