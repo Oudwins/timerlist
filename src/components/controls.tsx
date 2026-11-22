@@ -7,7 +7,7 @@ import { Icon, type IconName } from './icon';
 export function IconButton({ icon, label, onPress, color = palette.muted, disabled = false, className = '' }: {
   icon: IconName; label: string; onPress: () => void; color?: string; disabled?: boolean; className?: string;
 }) {
-  return <Pressable accessibilityRole="button" accessibilityLabel={label} disabled={disabled} onPress={onPress} className={`h-11 w-11 items-center justify-center rounded-xl hover:bg-white/5 active:bg-white/10 ${disabled ? 'opacity-25' : ''} ${className}`}><Icon name={icon} color={color} size={20} /></Pressable>;
+  return <Pressable accessibilityRole="button" accessibilityLabel={label} disabled={disabled} onPress={onPress} className={`h-11 w-11 items-center justify-center rounded-xl ${disabled ? 'opacity-25' : 'hover:bg-white/5 active:bg-white/10'} ${className}`}><Icon name={icon} color={color} size={20} /></Pressable>;
 }
 
 export function Button({ children, onPress, icon, secondary = false, disabled = false, className = '' }: {

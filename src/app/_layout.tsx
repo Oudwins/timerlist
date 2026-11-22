@@ -12,7 +12,7 @@ SplashScreen.preventAutoHideAsync();
 export default function RootLayout() {
   const [loaded, error] = useFonts({
     DMSans: require('../../assets/fonts/DMSans.ttf'),
-    DMSansMedium: require('../../assets/fonts/DMSans.ttf'),
+    DMSansMedium: require('../../assets/fonts/DMSansMedium.ttf'),
     DMMono: require('../../assets/fonts/DMMono.ttf'),
   });
   useEffect(() => { if (loaded || error) SplashScreen.hide(); }, [loaded, error]);

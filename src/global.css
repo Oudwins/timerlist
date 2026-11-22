@@ -5,7 +5,7 @@
 @layer base {
   html { background: #28211D; color-scheme: dark; }
   body { margin: 0; }
-  :focus-visible { outline: 2px solid #FF5722; outline-offset: 4px; }
+  :focus-visible { outline: 2px solid #F5F2EF; outline-offset: 2px; }
   ::selection { background: #FF572250; }
   input { caret-color: #FF5722; }
 }

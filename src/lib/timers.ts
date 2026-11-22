@@ -73,6 +73,10 @@ export function remainingTime(timer: Timer, now: number) {
     : timer.remaining;
 }
 
+export function canReset(timer: Timer, now: number) {
+  return remainingTime(timer, now) !== timer.duration * 1000 || timer.completed > 0;
+}
+
 // Deadlines, rather than interval ticks, are the source of truth. This also
 // catches up every elapsed repetition after sleep, backgrounding, or a reload.
 export function advanceTimer(timer: Timer, now: number): Timer {

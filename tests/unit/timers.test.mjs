@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { advanceTimer, createTimer, defaultDefinition, durationLabel, formatTime, isTimer, moveTimer, pauseTimer, remainingTime, resetTimer, sampleTimers, startTimer } from '../../src/lib/timers.ts';
+import { advanceTimer, canReset, createTimer, defaultDefinition, durationLabel, formatTime, isTimer, moveTimer, pauseTimer, remainingTime, resetTimer, sampleTimers, startTimer } from '../../src/lib/timers.ts';
 import { alarmPlan } from '../../src/lib/alarm-plan.ts';
 
 const make = (overrides = {}) => createTimer({ ...defaultDefinition, label: 'Tea', duration: 5, ...overrides }, 'tea');
@@ -121,4 +121,15 @@ test('alarm plans ignore elapsed dates, and resume from a new deadline', () => {
   assert.deepEqual(alarmPlan([timer], 8000).map(alarm => alarm.date), [11000, 16000]);
   const resumed = startTimer(pauseTimer(timer, 3000), 20000);
   assert.deepEqual(alarmPlan([resumed], 20000).map(alarm => alarm.date), [23000, 28000, 33000]);
+});
+
+test('reset is offered only once there is progress to discard', () => {
+  const timer = make({ repeats: 2 });
+  assert.equal(canReset(timer, 0), false);
+  assert.equal(canReset(startTimer(timer, 0), 0), false);
+  assert.equal(canReset(startTimer(timer, 0), 1000), true);
+  assert.equal(canReset(pauseTimer(startTimer(timer, 0), 1000), 0), true);
+  assert.equal(canReset(advanceTimer(startTimer(timer, 0), 5000), 5000), true);
+  assert.equal(canReset(advanceTimer(startTimer(timer, 0), 10000), 0), true);
+  assert.equal(canReset(resetTimer(advanceTimer(startTimer(timer, 0), 10000)), 0), false);
 });

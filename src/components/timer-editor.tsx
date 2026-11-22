@@ -2,16 +2,20 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Keyboard, KeyboardAvoidingView, Modal, PanResponder, Platform, Pressable, ScrollView, Switch, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { palette } from '@/constants/design';
+import { onColor, palette } from '@/constants/design';
 import { colors, defaultDefinition, tones, type Timer, type TimerDefinition, type Tone } from '@/lib/timers';
 import { IconButton } from './controls';
 import { Icon, type IconName } from './icon';
+
+// React Native Web colours the "on" thumb with its own prop, which the native Switch types do not list.
+const switchColors = { trackColor: { false: palette.line, true: '#FF572250' }, activeThumbColor: palette.orange };
 
 const tabs: { name: 'Time' | 'Repeat' | 'Color' | 'Tone'; icon: IconName }[] = [
   { name: 'Time', icon: 'clock' }, { name: 'Repeat', icon: 'repeat' }, { name: 'Color', icon: 'palette' }, { name: 'Tone', icon: 'bell' },
 ];
 
-function NumberField({ label, value, onChange, max, selected, onDragChange }: { label: string; value: string; onChange: (value: string) => void; max: number; selected?: boolean; onDragChange: (dragging: boolean) => void }) {
+function NumberField({ label, value, onChange, max, onDragChange }: { label: string; value: string; onChange: (value: string) => void; max: number; onDragChange: (dragging: boolean) => void }) {
+  const [focused, setFocused] = useState(false);
   const current = useRef(value);
   useEffect(() => { current.current = value; }, [value]);
   const start = useRef(0);
@@ -37,9 +41,9 @@ function NumberField({ label, value, onChange, max, selected, onDragChange }: { 
   const step = (direction: number) => String((Number(value) + direction + max + 1) % (max + 1)).padStart(2, '0');
   return <View testID={`picker-${label.toLowerCase()}`} className="flex-1 items-center web:touch-none" {...gesture.panHandlers}>
     <Text className="mb-3 font-body text-sm text-muted">{label}</Text>
-    <Pressable accessibilityRole="button" accessibilityLabel={`Decrease ${label.toLowerCase()}`} onPress={() => onChange(step(-1))} className="h-11 justify-center"><Text className="font-body text-[23px] text-faint">{step(-1)}</Text></Pressable>
-    <TextInput accessibilityLabel={label} className={`h-16 w-16 rounded-full border-2 text-center font-body text-[25px] text-cream ${selected ? 'border-orange bg-orange' : 'border-muted/50'}`} keyboardType="number-pad" inputMode="numeric" selectTextOnFocus={Platform.OS !== 'web'} maxLength={2} value={value} onChangeText={text => onChange(text.replace(/\D/g, '').slice(0, 2))} onBlur={() => onChange(String(Math.min(max, Number(value) || 0)).padStart(2, '0'))} />
-    <Pressable accessibilityRole="button" accessibilityLabel={`Increase ${label.toLowerCase()}`} onPress={() => onChange(step(1))} className="h-11 justify-center"><Text className="font-body text-[23px] text-faint">{step(1)}</Text></Pressable>
+    <Pressable accessibilityRole="button" accessibilityLabel={`Decrease ${label.toLowerCase()}`} onPress={() => onChange(step(-1))} className="h-11 w-16 items-center justify-center active:opacity-60"><Text className="font-body text-[22px] text-faint">{step(-1)}</Text></Pressable>
+    <TextInput accessibilityLabel={label} className={`h-16 w-16 rounded-full border-2 text-center font-body text-[25px] text-cream web:outline-none ${focused ? 'border-cream' : 'border-line'}`} onFocus={() => setFocused(true)} keyboardType="number-pad" inputMode="numeric" selectTextOnFocus={Platform.OS !== 'web'} maxLength={2} value={value} onChangeText={text => onChange(text.replace(/\D/g, '').slice(0, 2))} onBlur={() => { setFocused(false); onChange(String(Math.min(max, Number(value) || 0)).padStart(2, '0')); }} />
+    <Pressable accessibilityRole="button" accessibilityLabel={`Increase ${label.toLowerCase()}`} onPress={() => onChange(step(1))} className="h-11 w-16 items-center justify-center active:opacity-60"><Text className="font-body text-[22px] text-faint">{step(1)}</Text></Pressable>
   </View>;
 }
 
@@ -57,10 +61,10 @@ export function TimerEditor({ timer, onClose, onSave, onPreview }: {
   const [sound, setSound] = useState(initial.sound);
   const [vibrate, setVibrate] = useState(initial.vibrate);
   const [tab, setTab] = useState<(typeof tabs)[number]['name']>('Time');
-  const [showTones, setShowTones] = useState(false);
   const [error, setError] = useState('');
   const [draggingTime, setDraggingTime] = useState(false);
   const insets = useSafeAreaInsets();
+  const ink = onColor(color);
   const duration = Number(hours) * 3600 + Number(minutes) * 60 + Number(seconds);
   const count = Math.max(1, Math.min(99, Number(repeats) || 1));
 
@@ -77,15 +81,15 @@ export function TimerEditor({ timer, onClose, onSave, onPreview }: {
       <Pressable accessibilityLabel="Close timer editor" onPress={onClose} className="absolute inset-0" />
       <View accessibilityViewIsModal className="max-h-[94%] w-full max-w-[480px] overflow-hidden rounded-t-[24px] bg-surface sm:rounded-[24px]" style={{ paddingBottom: Math.max(insets.bottom, 8) }}>
         <View className="px-7 pt-9" style={{ backgroundColor: color }}>
-          <View className="mb-6 flex-row items-center gap-2 border-b border-white/60 pb-1">
-            <Icon name="tag" size={23} color={palette.text} />
-            <TextInput accessibilityLabel="Timer label" autoFocus={!timer && Platform.OS === 'web'} placeholder="Label" placeholderTextColor="#FFFFFF99" maxLength={60} value={label} onChangeText={text => { setLabel(text); setError(''); }} returnKeyType="done" onSubmitEditing={save} className="min-h-11 flex-1 font-body text-[23px] text-white web:outline-none" selectionColor={palette.text} />
+          <View className="mb-6 flex-row items-center gap-2 border-b pb-1" style={{ borderColor: `${ink}99` }}>
+            <Icon name="tag" size={22} color={ink} />
+            <TextInput accessibilityLabel="Timer label" autoFocus={!timer && Platform.OS === 'web'} placeholder="Label" placeholderTextColor={`${ink}99`} maxLength={60} value={label} onChangeText={text => { setLabel(text); setError(''); }} returnKeyType="done" onSubmitEditing={save} className="min-h-11 flex-1 font-body text-[22px] web:outline-none" style={{ color: ink }} selectionColor={ink} />
           </View>
-          <View className="-mx-3 flex-row">
-            {tabs.map(item => <Pressable key={item.name} accessibilityRole="tab" aria-selected={tab === item.name} onPress={() => setTab(item.name)} className="flex-1 items-center gap-3 pb-4 pt-3">
-              <Icon name={item.icon} size={23} color={palette.text} />
-              <Text className="font-medium text-sm text-white">{item.name}</Text>
-              {tab === item.name && <View className="absolute bottom-0 h-[3px] w-8 rounded-t-full bg-white" />}
+          <View accessibilityRole="tablist" className="-mx-3 flex-row">
+            {tabs.map(item => <Pressable key={item.name} accessibilityRole="tab" aria-selected={tab === item.name} onPress={() => setTab(item.name)} className={`flex-1 items-center gap-2 pb-4 pt-3 active:opacity-60 ${tab === item.name ? '' : 'opacity-70'}`}>
+              <Icon name={item.icon} size={22} color={ink} />
+              <Text className="font-medium text-sm" style={{ color: ink }}>{item.name}</Text>
+              {tab === item.name && <View className="absolute bottom-0 h-[3px] w-8 rounded-t-full" style={{ backgroundColor: ink }} />}
             </Pressable>)}
           </View>
         </View>
@@ -96,9 +100,9 @@ export function TimerEditor({ timer, onClose, onSave, onPreview }: {
               <Text className="pt-6 font-body text-2xl text-muted">:</Text>
               <NumberField label="Minutes" value={minutes} onChange={setMinutes} max={59} onDragChange={setDraggingTime} />
               <Text className="pt-6 font-body text-2xl text-muted">:</Text>
-              <NumberField label="Seconds" value={seconds} onChange={setSeconds} max={59} selected onDragChange={setDraggingTime} />
+              <NumberField label="Seconds" value={seconds} onChange={setSeconds} max={59} onDragChange={setDraggingTime} />
             </View>
-            <IconButton icon="reset" label="Clear time" color={palette.text} onPress={() => { setHours('00'); setMinutes('00'); setSeconds('00'); }} className="mt-5" />
+            <IconButton icon="reset" label="Clear time" disabled={!duration} onPress={() => { setHours('00'); setMinutes('00'); setSeconds('00'); }} className="mt-5" />
           </View>}
           {tab === 'Repeat' && <View className="items-center pt-6">
             <Text className="font-body text-base text-muted">Number of rounds</Text>
@@ -109,23 +113,26 @@ export function TimerEditor({ timer, onClose, onSave, onPreview }: {
             </View>
           </View>}
           {tab === 'Color' && <View className="flex-row flex-wrap justify-between gap-y-4">
-            {colors.map(item => <View key={item.value} className="w-1/5 items-center"><Pressable accessibilityRole="radio" accessibilityLabel={item.name} aria-checked={color === item.value} onPress={() => setColor(item.value)} className="h-11 w-11 items-center justify-center rounded-full border" style={{ backgroundColor: item.value, borderColor: color === item.value ? palette.text : '#FFFFFF40' }}>{color === item.value && <Icon name="check" color={palette.text} size={22} />}</Pressable></View>)}
+            {colors.map(item => <View key={item.value} className="w-1/5 items-center"><Pressable accessibilityRole="radio" accessibilityLabel={item.name} aria-checked={color === item.value} onPress={() => setColor(item.value)} className="h-11 w-11 items-center justify-center rounded-full border-2 active:opacity-70" style={{ backgroundColor: item.value, borderColor: color === item.value ? palette.text : 'transparent' }}>{color === item.value && <Icon name="check" color={onColor(item.value)} size={22} />}</Pressable></View>)}
           </View>}
-          {tab === 'Tone' && <View className="items-center gap-4">
-            <Text className="font-body text-sm text-muted">Timer alarm</Text>
-            <Pressable accessibilityRole="button" accessibilityLabel="Choose alarm tone" onPress={() => setShowTones(!showTones)} className="min-h-12 flex-row items-center gap-4 rounded-full bg-orange px-5"><Icon name="bell" color={palette.text} size={22} /><Text className="font-body text-sm text-white">{tones.find(item => item.id === tone)?.name}</Text><Icon name="down" color={palette.text} size={20} /></Pressable>
-            {showTones && <View className="w-full">{tones.map(item => <View key={item.id} className="flex-row items-center"><Pressable accessibilityRole="radio" accessibilityLabel={item.name} aria-checked={tone === item.id} onPress={() => { setTone(item.id); setShowTones(false); }} className="min-h-12 flex-1 flex-row items-center gap-3"><Icon name={tone === item.id ? 'check' : 'bell'} size={18} color={palette.muted} /><Text className="font-body text-sm text-cream">{item.name}</Text></Pressable><IconButton icon="play" label={`Preview ${item.name}`} onPress={() => onPreview(item.id)} /></View>)}</View>}
-            <View className="mt-2 flex-row items-center gap-4">
-              <Icon name="vibrate" color={palette.text} size={23} /><Switch accessibilityLabel="Vibration" value={vibrate} onValueChange={setVibrate} trackColor={{ false: palette.line, true: '#FF572250' }} thumbColor={vibrate ? palette.orange : palette.muted} />
-              <Icon name="volume" color={palette.text} size={23} /><Switch accessibilityLabel="Alarm sound" value={sound} onValueChange={setSound} trackColor={{ false: palette.line, true: '#FF572250' }} thumbColor={sound ? palette.orange : palette.muted} />
+          {tab === 'Tone' && <View>
+            <View className="min-h-12 flex-row items-center gap-3"><Icon name="volume" color={palette.muted} size={20} /><Text className="flex-1 font-body text-base text-cream">Sound</Text><Switch accessibilityLabel="Alarm sound" value={sound} onValueChange={setSound} {...switchColors} thumbColor={sound ? palette.orange : palette.muted} /></View>
+            {Platform.OS !== 'web' && <View className="min-h-12 flex-row items-center gap-3"><Icon name="vibrate" color={palette.muted} size={20} /><Text className="flex-1 font-body text-base text-cream">Vibrate</Text><Switch accessibilityLabel="Vibration" value={vibrate} onValueChange={setVibrate} {...switchColors} thumbColor={vibrate ? palette.orange : palette.muted} /></View>}
+            <View accessibilityRole="radiogroup" accessibilityLabel="Alarm tone" className={`mt-3 border-t border-line pt-3 ${sound ? '' : 'opacity-40'}`}>
+              {tones.map(item => <View key={item.id} className="flex-row items-center">
+                <Pressable accessibilityRole="radio" accessibilityLabel={item.name} aria-checked={tone === item.id} disabled={!sound} onPress={() => setTone(item.id)} className="min-h-12 flex-1 flex-row items-center gap-3 active:opacity-60">
+                  <View className="w-5">{tone === item.id && <Icon name="check" size={20} color={palette.orange} />}</View>
+                  <Text className={`font-body text-base ${tone === item.id ? 'text-cream' : 'text-muted'}`}>{item.name}</Text>
+                </Pressable>
+                <IconButton icon="play" label={`Preview ${item.name}`} disabled={!sound} onPress={() => onPreview(item.id)} />
+              </View>)}
             </View>
-            <IconButton icon="play" label="Preview alarm sound" color={palette.text} onPress={() => onPreview(tone)} />
           </View>}
         </ScrollView>
         {!!error && <Text accessibilityRole="alert" className="px-7 pb-2 font-body text-sm text-danger">{error}</Text>}
-        <View className="flex-row justify-end gap-4 px-6 pb-3">
-          <Pressable accessibilityRole="button" onPress={onClose} className="min-h-12 justify-center px-3"><Text className="font-medium text-sm text-cream">CANCEL</Text></Pressable>
-          <Pressable accessibilityRole="button" onPress={save} className="min-h-12 min-w-12 items-center justify-center"><Text className="font-medium text-sm text-cream">OK</Text></Pressable>
+        <View className="flex-row justify-end gap-2 px-4 pb-3">
+          <Pressable accessibilityRole="button" onPress={onClose} className="min-h-12 justify-center rounded-xl px-3 hover:bg-white/5 active:bg-white/10"><Text className="font-medium text-sm text-muted">CANCEL</Text></Pressable>
+          <Pressable accessibilityRole="button" onPress={save} className="min-h-12 min-w-12 items-center justify-center rounded-xl px-3 hover:bg-white/5 active:bg-white/10"><Text className="font-medium text-sm text-orange">OK</Text></Pressable>
         </View>
       </View>
     </KeyboardAvoidingView>

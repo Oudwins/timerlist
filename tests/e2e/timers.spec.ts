@@ -66,9 +66,8 @@ test('create, customize every tab, persist, and edit', async ({ page }, info) =>
   await expect(page.getByRole('radio', { name: 'Teal', exact: true })).toBeChecked();
   await capture(page, info, 'color-editor.png');
   await page.getByRole('tab', { name: 'Tone', exact: true }).click();
-  await page.getByRole('button', { name: 'Choose alarm tone' }).click();
   await page.getByRole('radio', { name: 'Chime', exact: true }).click();
-  await page.getByRole('switch', { name: 'Vibration', exact: true }).click();
+  await page.getByRole('switch', { name: 'Alarm sound', exact: true }).click();
   await capture(page, info, 'tone-editor.png');
   await page.getByRole('button', { name: 'OK', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Start Coffee', exact: true })).toBeVisible();
@@ -81,8 +80,8 @@ test('create, customize every tab, persist, and edit', async ({ page }, info) =>
   await page.getByRole('tab', { name: 'Color', exact: true }).click();
   await expect(page.getByRole('radio', { name: 'Teal', exact: true })).toBeChecked();
   await page.getByRole('tab', { name: 'Tone', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Choose alarm tone' })).toContainText('Chime');
-  await expect(page.getByRole('switch', { name: 'Vibration', exact: true })).not.toBeChecked();
+  await expect(page.getByRole('radio', { name: 'Chime', exact: true })).toBeChecked();
+  await expect(page.getByRole('switch', { name: 'Alarm sound', exact: true })).not.toBeChecked();
   await page.getByRole('textbox', { name: 'Timer label' }).fill('Tea');
   await page.getByRole('button', { name: 'OK', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Start Tea', exact: true })).toBeVisible();
@@ -434,11 +433,105 @@ test('empty library stays empty and the top-bar button creates a timer', async (
   await expect(page.getByRole('button', { name: 'Start First', exact: true })).toBeVisible();
 });
 
+test('ordering controls appear only when there are at least two timers', async ({ page }) => {
+  await page.evaluate(() => localStorage.setItem('timerlist:timers', '[]'));
+  await page.reload();
+  await expect(page.getByText('No timers yet', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Sort timers', exact: true })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Menu', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Test alarm sound', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Reorder timers', exact: true })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Close dialog', exact: true }).click();
+  await page.getByRole('button', { name: 'New timer', exact: true }).click();
+  await page.getByRole('textbox', { name: 'Timer label' }).fill('Only');
+  await page.getByRole('button', { name: 'OK', exact: true }).click();
+  await expect(page.getByText('No timers yet', { exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Sort timers', exact: true })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Options for Only', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Duplicate timer', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Reorder timers', exact: true })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Duplicate timer', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Sort timers', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Options for Only', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Reorder timers', exact: true })).toBeVisible();
+});
+
+test('timer menu offers reset only when there is something to reset', async ({ page }) => {
+  await page.getByRole('button', { name: 'Options for rest', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Edit timer', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Reset timer', exact: true })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Close dialog', exact: true }).click();
+  await page.getByRole('button', { name: 'Start rest', exact: true }).click();
+  await page.getByRole('button', { name: 'Pause rest', exact: true }).click();
+  await page.getByRole('button', { name: 'Options for rest', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Reset timer', exact: true })).toBeVisible();
+});
+
+test('reorder mode shows only move controls and Done', async ({ page }, info) => {
+  await page.getByRole('button', { name: 'Start rest', exact: true }).click();
+  await page.getByRole('button', { name: 'Sort timers', exact: true }).click();
+  await page.getByRole('button', { name: 'Reorder timers', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Done reordering', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Move rest up', exact: true })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Move rest down', exact: true })).toBeEnabled();
+  await expect(page.getByRole('button', { name: 'Move medium/hard down', exact: true })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Sort timers', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Add timer', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /^Options for / })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /^Reset / })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Edit rest', exact: true })).toBeDisabled();
+  await capture(page, info, 'reorder-mode.png');
+  await page.getByRole('button', { name: 'Done reordering', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Options for rest', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Reset rest', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Edit rest', exact: true })).toBeEnabled();
+});
+
+test('editor controls are offered only when they can do something', async ({ page }) => {
+  await page.getByRole('button', { name: 'Add timer', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Clear time', exact: true })).toBeEnabled();
+  await page.getByRole('button', { name: 'Clear time', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Clear time', exact: true })).toBeDisabled();
+  await page.getByRole('tab', { name: 'Tone', exact: true }).click();
+  // Browsers cannot vibrate for an alarm, so the switch is not offered there.
+  await expect(page.getByRole('switch', { name: 'Vibration', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Preview Bell', exact: true })).toBeEnabled();
+  await expect(page.getByRole('button', { name: /^Preview / })).toHaveCount(3);
+  await page.getByRole('switch', { name: 'Alarm sound', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Preview Bell', exact: true })).toBeDisabled();
+  await expect(page.getByRole('radio', { name: 'Bell', exact: true })).toBeDisabled();
+});
+
+test('an intermediate round is not announced as a finished timer', async ({ page }) => {
+  await page.clock.install();
+  await createTimer(page, 'Rounds', 2, 2);
+  await page.getByRole('button', { name: 'Start Rounds', exact: true }).click();
+  await page.clock.fastForward(2100);
+  await expect(page.getByRole('heading', { name: 'Round complete', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Timer finished', exact: true })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Stop Rounds', exact: true }).click();
+  await page.clock.fastForward(2100);
+  await expect(page.getByRole('heading', { name: 'Timer finished', exact: true })).toBeVisible();
+});
+
+test('idle timers show no fraction; active ones show tenths', async ({ page }) => {
+  await page.clock.install();
+  const row = page.getByRole('button', { name: 'Edit rest', exact: true });
+  await expect(row).toHaveText('rest01:301/3');
+  await page.getByRole('button', { name: 'Start rest', exact: true }).click();
+  await page.clock.fastForward(500);
+  await expect(row).toContainText(/01:29\.\d1\/3/);
+});
+
 test('corrupt saved data is preserved', async ({ page }) => {
   await page.evaluate(() => localStorage.setItem('timerlist:timers', 'not-json'));
   await page.reload();
   await expect(page.getByRole('alert')).toContainText('Nothing was overwritten');
   expect(await page.evaluate(() => localStorage.getItem('timerlist:timers'))).toBe('not-json');
+  // Nothing can be saved in this state, so the warning stays and adding is unavailable.
+  await expect(page.getByRole('button', { name: 'Dismiss notice', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Add timer', exact: true })).toBeDisabled();
+  await expect(page.getByText('No timers yet', { exact: true })).toHaveCount(0);
 });
 
 test('small phone editor and hour timers fit', async ({ page }, info) => {

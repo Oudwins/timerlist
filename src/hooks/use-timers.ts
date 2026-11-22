@@ -22,6 +22,7 @@ export function useTimers() {
   const storageQueue = useRef(Promise.resolve());
   const notificationQueue = useRef(Promise.resolve());
   const [permissionReady, setPermissionReady] = useState(false);
+  const permissionAsked = useRef(false);
   const running = timers.some(timer => timer.status === 'running');
 
   useEffect(() => {
@@ -86,11 +87,12 @@ export function useTimers() {
   }, [timers, ready, storageSafe]);
 
   useEffect(() => {
-    if (!ready) return;
+    // Unreadable storage leaves the list empty; syncing it would cancel alarms that are still scheduled.
+    if (!ready || !storageSafe) return;
     // Serialize scheduling and cancellation so rapid start/pause/edit cannot leave stale alarms.
     notificationQueue.current = notificationQueue.current.then(() => syncAlarms(current.current))
       .catch(error => setNotice(error instanceof Error ? error.message : 'Background alarms are unavailable. Keep the app open.'));
-  }, [timers, ready, permissionReady]);
+  }, [timers, ready, storageSafe, permissionReady]);
 
   useEffect(() => {
     if (!ready || !running) return;
@@ -128,7 +130,10 @@ export function useTimers() {
 
   const prepareStart = () => {
     alarm.unlock();
-    if (!permissionReady) void allowAlarms();
+    // Ask once per session; the menu offers it again after a refusal.
+    if (permissionAsked.current) return;
+    permissionAsked.current = true;
+    void allowAlarms();
   };
 
   const toggle = (id: string) => {
@@ -142,13 +147,16 @@ export function useTimers() {
   };
 
   const save = (definition: TimerDefinition, id?: string) => {
+    const existing = current.current.find(item => item.id === id);
+    // Saving without changes must not reset a timer that is counting down.
+    if (existing && Object.entries(definition).every(([key, value]) => Reflect.get(existing, key) === value)) return;
     if (id) dismiss(id, true);
     const timer = createTimer({ ...definition, label: definition.label.trim() }, id);
     commit(id ? current.current.map(item => item.id === id ? timer : item) : [...current.current, timer]);
   };
 
   return {
-    timers, now, ready, notice, setNotice, storageSafe, save, toggle, alarm, allowAlarms, ringing, dismiss,
+    timers, now, ready, notice, setNotice, storageSafe, permissionReady, save, toggle, alarm, allowAlarms, ringing, dismiss,
     reset: (id: string) => { dismiss(id, true); commit(current.current.map(timer => timer.id === id ? resetTimer(timer) : timer)); },
     remove: (id: string) => { dismiss(id, true); commit(current.current.filter(timer => timer.id !== id)); },
     duplicate: (id: string) => {

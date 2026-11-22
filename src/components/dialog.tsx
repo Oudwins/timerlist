@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Modal, Pressable, Text, View } from 'react-native';
+import { Modal, Pressable, ScrollView, Text, View } from 'react-native';
 
 import { IconButton } from './controls';
 
@@ -9,7 +9,7 @@ export function Dialog({ title, onClose, children }: { title: string; onClose: (
       <Pressable accessibilityLabel="Close dialog" onPress={onClose} className="absolute inset-0" />
       <View accessibilityViewIsModal className="max-h-[90%] w-full max-w-[430px] rounded-3xl border border-line bg-surface p-6">
         <View className="mb-4 flex-row items-center justify-between gap-2"><Text accessibilityRole="header" className="flex-1 font-body text-xl text-cream">{title}</Text><IconButton icon="close" label="Close dialog" onPress={onClose} /></View>
-        {children}
+        <ScrollView className="shrink" showsVerticalScrollIndicator={false}>{children}</ScrollView>
       </View>
     </View>
   </Modal>;
