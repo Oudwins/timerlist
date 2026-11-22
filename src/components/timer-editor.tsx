@@ -87,7 +87,7 @@ export function TimerEditor({ timer, onClose, onSave, onPreview }: {
         <View className="px-7 pt-9" style={{ backgroundColor: color }}>
           <View className={`mb-6 flex-row items-center gap-2 ${nameFocused ? 'border-b-2 pb-[3px]' : 'border-b pb-1'}`} style={{ borderColor: ink }}>
             <Icon name="tag" size={22} color={ink} />
-            <TextInput ref={nameRef} accessibilityLabel="Timer name" autoFocus={!timer && Platform.OS === 'web'} placeholder="Timer name" placeholderTextColor={ink} onFocus={() => setNameFocused(true)} onBlur={() => setNameFocused(false)} maxLength={60} value={label} onChangeText={text => { setLabel(text); setError(''); }} returnKeyType="done" onSubmitEditing={save} className="min-h-11 flex-1 font-body text-[22px] web:outline-none" style={{ color: ink }} selectionColor={ink} />
+            <TextInput ref={nameRef} accessibilityLabel="Timer name" autoFocus={!timer && Platform.OS === 'web'} placeholder="Name this timer" placeholderTextColor={ink} onFocus={() => setNameFocused(true)} onBlur={() => setNameFocused(false)} maxLength={60} value={label} onChangeText={text => { setLabel(text); setError(''); }} returnKeyType="done" onSubmitEditing={save} className="min-h-11 flex-1 font-body text-[22px] web:outline-none" style={{ color: ink }} selectionColor={ink} />
           </View>
           <View accessibilityRole="tablist" className="-mx-3 flex-row">
             {tabs.map(item => <Pressable key={item.name} accessibilityRole="tab" aria-selected={tab === item.name} onPress={() => setTab(item.name)} className="flex-1 items-center gap-2 pb-4 pt-3 active:opacity-60" style={{ outlineColor: ink }}>
