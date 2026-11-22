@@ -86,7 +86,7 @@ export function TimerEditor({ timer, onClose, onSave, onPreview }: {
             <TextInput accessibilityLabel="Timer label" autoFocus={!timer && Platform.OS === 'web'} placeholder="Label" placeholderTextColor={`${ink}99`} maxLength={60} value={label} onChangeText={text => { setLabel(text); setError(''); }} returnKeyType="done" onSubmitEditing={save} className="min-h-11 flex-1 font-body text-[22px] web:outline-none" style={{ color: ink }} selectionColor={ink} />
           </View>
           <View accessibilityRole="tablist" className="-mx-3 flex-row">
-            {tabs.map(item => <Pressable key={item.name} accessibilityRole="tab" aria-selected={tab === item.name} onPress={() => setTab(item.name)} className={`flex-1 items-center gap-2 pb-4 pt-3 active:opacity-60`}>
+            {tabs.map(item => <Pressable key={item.name} accessibilityRole="tab" aria-selected={tab === item.name} onPress={() => setTab(item.name)} className="flex-1 items-center gap-2 pb-4 pt-3 active:opacity-60" style={{ outlineColor: ink }}>
               <Icon name={item.icon} size={22} color={ink} />
               <Text className="font-medium text-sm" style={{ color: ink }}>{item.name}</Text>
               {tab === item.name && <View className="absolute bottom-0 h-[3px] w-8 rounded-t-full" style={{ backgroundColor: ink }} />}

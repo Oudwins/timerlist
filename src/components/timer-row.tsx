@@ -10,7 +10,7 @@ import { Icon } from './icon';
 // DM Sans has no tabular figures, so each digit gets a fixed-width cell to keep the countdown from shifting as it ticks.
 function Digits({ children, size, color }: { children: string; size: number; color: string }) {
   const { fontScale } = useWindowDimensions();
-  return children.split('').map((character, index) => <Text key={index} className="text-center font-body" style={{ color, fontSize: size, lineHeight: 40 * fontScale, width: /\d/.test(character) ? size * 0.65 * fontScale : undefined }}>{character}</Text>);
+  return children.split('').map((character, index) => <Text key={index} className="text-center font-body" style={{ color, fontSize: size, lineHeight: 40, width: /\d/.test(character) ? size * 0.65 * fontScale : undefined }}>{character}</Text>);
 }
 
 export const TimerRow = memo(function TimerRow({ timer, now, index, total, arranging, onToggle, onEdit, onReset, onMore, onMove }: {
