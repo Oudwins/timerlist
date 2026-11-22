@@ -1,5 +1,5 @@
 import { memo, useEffect } from 'react';
-import { Pressable, Text, useWindowDimensions, View } from 'react-native';
+import { AppState, Pressable, Text, useWindowDimensions, View } from 'react-native';
 import Animated, { cancelAnimation, Easing, ReduceMotion, useAnimatedProps, useSharedValue, withTiming } from 'react-native-reanimated';
 import Svg, { Circle } from 'react-native-svg';
 
@@ -18,11 +18,18 @@ function ProgressRing({ timer }: { timer: Timer }) {
   const { status, deadline, remaining, duration, color } = timer;
   const running = status === 'running';
   useEffect(() => {
-    const left = running && deadline !== null ? Math.max(0, deadline - Date.now()) : remaining;
-    cancelAnimation(offset);
-    offset.set(circumference * (1 - left / (duration * 1000)));
-    // It shows time passing rather than decorating, so it keeps moving when reduced motion is on.
-    if (running) offset.set(withTiming(circumference, { duration: left, easing: Easing.linear, reduceMotion: ReduceMotion.Never }));
+    const sync = () => {
+      const left = running && deadline !== null ? Math.max(0, deadline - Date.now()) : remaining;
+      cancelAnimation(offset);
+      offset.set(circumference * (1 - left / (duration * 1000)));
+      // It shows time passing rather than decorating, so it keeps moving when reduced motion is on.
+      if (running) offset.set(withTiming(circumference, { duration: left, easing: Easing.linear, reduceMotion: ReduceMotion.Never }));
+    };
+    sync();
+    if (!running) return;
+    // Native animation clocks stop while the device sleeps, but the deadline is wall time.
+    const subscription = AppState.addEventListener('change', state => { if (state === 'active') sync(); });
+    return () => subscription.remove();
   }, [offset, running, deadline, remaining, duration]);
   const animatedProps = useAnimatedProps(() => ({ strokeDashoffset: offset.get() }));
   return <AnimatedCircle cx={36} cy={36} r={32} fill="none" stroke={color} strokeOpacity={running ? 1 : 0.45} strokeWidth={4} strokeLinecap="round" strokeDasharray={circumference} animatedProps={animatedProps} rotation={-90} origin="36, 36" />;
