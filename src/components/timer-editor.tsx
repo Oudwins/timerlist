@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Keyboard, KeyboardAvoidingView, Modal, PanResponder, Platform, Pressable, ScrollView, Switch, Text, TextInput, View } from 'react-native';
+import { useReducedMotion } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { onColor, palette } from '@/constants/design';
@@ -41,9 +42,9 @@ function NumberField({ label, value, onChange, max, onDragChange }: { label: str
   const step = (direction: number) => String((Number(value) + direction + max + 1) % (max + 1)).padStart(2, '0');
   return <View testID={`picker-${label.toLowerCase()}`} className="flex-1 items-center web:touch-none" {...gesture.panHandlers}>
     <Text className="mb-3 font-body text-sm text-muted">{label}</Text>
-    <Pressable accessibilityRole="button" accessibilityLabel={`Decrease ${label.toLowerCase()}`} onPress={() => onChange(step(-1))} className="h-11 w-16 items-center justify-center active:opacity-60"><Text className="font-body text-[22px] text-faint">{step(-1)}</Text></Pressable>
-    <TextInput accessibilityLabel={label} className={`h-16 w-16 rounded-full border-2 text-center font-body text-[25px] text-cream web:outline-none ${focused ? 'border-cream' : 'border-muted/50'}`} onFocus={() => setFocused(true)} keyboardType="number-pad" inputMode="numeric" selectTextOnFocus={Platform.OS !== 'web'} maxLength={2} value={value} onChangeText={text => onChange(text.replace(/\D/g, '').slice(0, 2))} onBlur={() => { setFocused(false); onChange(String(Math.min(max, Number(value) || 0)).padStart(2, '0')); }} />
-    <Pressable accessibilityRole="button" accessibilityLabel={`Increase ${label.toLowerCase()}`} onPress={() => onChange(step(1))} className="h-11 w-16 items-center justify-center active:opacity-60"><Text className="font-body text-[22px] text-faint">{step(1)}</Text></Pressable>
+    <Pressable accessibilityRole="button" accessibilityLabel={`Decrease ${label.toLowerCase()}`} onPress={() => onChange(step(-1))} className="h-11 w-16 items-center justify-center active:opacity-60"><Text className="font-tabular text-[22px] text-faint">{step(-1)}</Text></Pressable>
+    <TextInput accessibilityLabel={label} className={`h-16 w-16 rounded-full border-2 text-center font-tabular text-[25px] text-cream web:outline-none ${focused ? 'border-cream' : 'border-muted/50'}`} onFocus={() => setFocused(true)} keyboardType="number-pad" inputMode="numeric" selectTextOnFocus={Platform.OS !== 'web'} maxLength={2} value={value} onChangeText={text => onChange(text.replace(/\D/g, '').slice(0, 2))} onBlur={() => { setFocused(false); onChange(String(Math.min(max, Number(value) || 0)).padStart(2, '0')); }} />
+    <Pressable accessibilityRole="button" accessibilityLabel={`Increase ${label.toLowerCase()}`} onPress={() => onChange(step(1))} className="h-11 w-16 items-center justify-center active:opacity-60"><Text className="font-tabular text-[22px] text-faint">{step(1)}</Text></Pressable>
   </View>;
 }
 
@@ -64,31 +65,32 @@ export function TimerEditor({ timer, onClose, onSave, onPreview }: {
   const [error, setError] = useState('');
   const [draggingTime, setDraggingTime] = useState(false);
   const insets = useSafeAreaInsets();
+  const reduceMotion = useReducedMotion();
   const ink = onColor(color);
   const duration = Number(hours) * 3600 + Number(minutes) * 60 + Number(seconds);
   const count = Math.max(1, Math.min(99, Number(repeats) || 1));
 
   const save = () => {
-    if (!label.trim()) { setError('Label required.'); return; }
-    if (!duration || Number(minutes) > 59 || Number(seconds) > 59) { setError('Enter a valid time greater than zero.'); setTab('Time'); return; }
-    if (!Number.isInteger(Number(repeats)) || Number(repeats) < 1 || Number(repeats) > 99) { setError('Enter 1–99 rounds.'); setTab('Repeat'); return; }
+    if (!label.trim()) { setError('Enter a timer name.'); return; }
+    if (!duration || Number(minutes) > 59 || Number(seconds) > 59) { setError('Set a time above zero.'); setTab('Time'); return; }
+    if (!Number.isInteger(Number(repeats)) || Number(repeats) < 1 || Number(repeats) > 99) { setError('Choose 1–99 rounds.'); setTab('Repeat'); return; }
     onSave({ label: label.trim(), duration, repeats: count, color, tone, sound, vibrate }, timer?.id);
     onClose();
   };
 
-  return <Modal transparent animationType="fade" visible onRequestClose={onClose} statusBarTranslucent>
+  return <Modal transparent animationType={reduceMotion ? 'none' : 'fade'} visible onRequestClose={onClose} statusBarTranslucent>
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} className="flex-1 items-center justify-end bg-black/50 sm:justify-center">
       <Pressable accessibilityLabel="Close timer editor" onPress={onClose} className="absolute inset-0" />
       <View accessibilityViewIsModal className="max-h-[94%] w-full max-w-[480px] overflow-hidden rounded-t-[24px] bg-surface sm:rounded-[24px]" style={{ paddingBottom: Math.max(insets.bottom, 8) }}>
         <View className="px-7 pt-9" style={{ backgroundColor: color }}>
-          <View className="mb-6 flex-row items-center gap-2 border-b pb-1" style={{ borderColor: `${ink}99` }}>
+          <View className="mb-6 flex-row items-center gap-2 border-b pb-1" style={{ borderColor: ink }}>
             <Icon name="tag" size={22} color={ink} />
-            <TextInput accessibilityLabel="Timer label" autoFocus={!timer && Platform.OS === 'web'} placeholder="Label" placeholderTextColor={`${ink}99`} maxLength={60} value={label} onChangeText={text => { setLabel(text); setError(''); }} returnKeyType="done" onSubmitEditing={save} className="min-h-11 flex-1 font-body text-[22px] web:outline-none" style={{ color: ink }} selectionColor={ink} />
+            <TextInput accessibilityLabel="Timer name" autoFocus={!timer && Platform.OS === 'web'} placeholder="Timer name" placeholderTextColor={`${ink}CC`} maxLength={60} value={label} onChangeText={text => { setLabel(text); setError(''); }} returnKeyType="done" onSubmitEditing={save} className="min-h-11 flex-1 font-body text-[22px]" style={{ color: ink, outlineColor: ink }} selectionColor={ink} />
           </View>
           <View accessibilityRole="tablist" className="-mx-3 flex-row">
             {tabs.map(item => <Pressable key={item.name} accessibilityRole="tab" aria-selected={tab === item.name} onPress={() => setTab(item.name)} className="flex-1 items-center gap-2 pb-4 pt-3 active:opacity-60" style={{ outlineColor: ink }}>
               <Icon name={item.icon} size={22} color={ink} />
-              <Text className="font-medium text-sm" style={{ color: ink }}>{item.name}</Text>
+              <Text className={`text-sm ${tab === item.name ? 'font-medium' : 'font-body'}`} style={{ color: ink }}>{item.name}</Text>
               {tab === item.name && <View className="absolute bottom-0 h-[3px] w-8 rounded-t-full" style={{ backgroundColor: ink }} />}
             </Pressable>)}
           </View>
@@ -124,15 +126,15 @@ export function TimerEditor({ timer, onClose, onSave, onPreview }: {
                   <View className="w-5">{tone === item.id && <Icon name="check" size={20} color={palette.orange} />}</View>
                   <Text className={`font-body text-base ${tone === item.id ? 'text-cream' : 'text-muted'}`}>{item.name}</Text>
                 </Pressable>
-                <IconButton icon="play" label={`Preview ${item.name}`} disabled={!sound} onPress={() => onPreview(item.id)} />
+                <IconButton icon="play" label={`Preview ${item.name}`} disabled={!sound} onPress={() => onPreview(item.id)} className="-mr-3" />
               </View>)}
             </View>
           </View>}
         </ScrollView>
-        {!!error && <Text accessibilityRole="alert" className="px-7 pb-2 font-body text-sm text-danger">{error}</Text>}
-        <View className="flex-row justify-end gap-2 px-4 pb-3">
-          <Pressable accessibilityRole="button" onPress={onClose} className="min-h-12 justify-center rounded-xl px-3 hover:bg-white/5 active:bg-white/10"><Text className="font-medium text-sm text-muted">CANCEL</Text></Pressable>
-          <Pressable accessibilityRole="button" onPress={save} className="min-h-12 min-w-12 items-center justify-center rounded-xl px-3 hover:bg-white/5 active:bg-white/10"><Text className="font-medium text-sm text-orange">OK</Text></Pressable>
+        <View className="flex-row items-center gap-2 pb-3 pl-7 pr-5">
+          <Text accessibilityRole="alert" className="flex-1 font-body text-sm text-danger">{error}</Text>
+          <Pressable accessibilityRole="button" onPress={onClose} className="min-h-12 justify-center rounded-xl px-3 hover:bg-white/5 active:bg-white/10 web:transition-colors"><Text className="font-medium text-base text-muted">Cancel</Text></Pressable>
+          <Pressable accessibilityRole="button" onPress={save} className="min-h-12 min-w-24 items-center justify-center rounded-full bg-orange px-6 hover:opacity-90 active:opacity-70 web:transition-opacity"><Text className="font-medium text-base text-ink">Save</Text></Pressable>
         </View>
       </View>
     </KeyboardAvoidingView>

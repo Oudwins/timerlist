@@ -157,7 +157,7 @@ export function useTimers() {
   return {
     timers, now, ready, setNotice,
     // Unreadable storage outranks every other message: nothing can be saved until it is fixed.
-    notice: storageSafe ? notice : 'Saved timers could not be read. Nothing was overwritten. Reload to retry.', storageSafe, permissionReady, save, toggle, alarm, allowAlarms, ringing, dismiss,
+    notice: storageSafe ? notice : 'Couldn’t read your saved timers. Nothing was overwritten — reload to try again.', storageSafe, permissionReady, save, toggle, alarm, allowAlarms, ringing, dismiss,
     reset: (id: string) => { dismiss(id, true); commit(current.current.map(timer => timer.id === id ? resetTimer(timer) : timer)); },
     remove: (id: string) => { dismiss(id, true); commit(current.current.filter(timer => timer.id !== id)); },
     duplicate: (id: string) => {

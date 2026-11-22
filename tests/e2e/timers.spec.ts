@@ -15,14 +15,14 @@ async function capture(page: Page, info: TestInfo, name: string) {
 
 async function createTimer(page: Page, label: string, seconds = 5, repeats = 1) {
   await page.getByRole('button', { name: 'Add timer', exact: true }).click();
-  await page.getByRole('textbox', { name: 'Timer label' }).fill(label);
+  await page.getByRole('textbox', { name: 'Timer name' }).fill(label);
   await page.getByRole('textbox', { name: 'Minutes', exact: true }).fill('00');
   await page.getByRole('textbox', { name: 'Seconds', exact: true }).fill(String(seconds));
   if (repeats > 1) {
     await page.getByRole('tab', { name: 'Repeat', exact: true }).click();
     await page.getByRole('textbox', { name: 'Number of rounds' }).fill(String(repeats));
   }
-  await page.getByRole('button', { name: 'OK', exact: true }).click();
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
 }
 
 async function reset(page: Page, label: string) {
@@ -54,7 +54,7 @@ test('screenshot-style list has only a top bar and timers', async ({ page }, inf
 
 test('create, customize every tab, persist, and edit', async ({ page }, info) => {
   await page.getByRole('button', { name: 'Add timer', exact: true }).click();
-  await page.getByRole('textbox', { name: 'Timer label' }).fill('Coffee');
+  await page.getByRole('textbox', { name: 'Timer name' }).fill('Coffee');
   await page.getByRole('textbox', { name: 'Minutes', exact: true }).fill('04');
   await page.getByRole('textbox', { name: 'Seconds', exact: true }).fill('30');
   await capture(page, info, 'time-editor.png');
@@ -69,7 +69,7 @@ test('create, customize every tab, persist, and edit', async ({ page }, info) =>
   await page.getByRole('radio', { name: 'Chime', exact: true }).click();
   await page.getByRole('switch', { name: 'Alarm sound', exact: true }).click();
   await capture(page, info, 'tone-editor.png');
-  await page.getByRole('button', { name: 'OK', exact: true }).click();
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Start Coffee', exact: true })).toBeVisible();
   await page.reload();
   await page.getByRole('button', { name: 'Edit Coffee', exact: true }).click();
@@ -82,20 +82,20 @@ test('create, customize every tab, persist, and edit', async ({ page }, info) =>
   await page.getByRole('tab', { name: 'Tone', exact: true }).click();
   await expect(page.getByRole('radio', { name: 'Chime', exact: true })).toBeChecked();
   await expect(page.getByRole('switch', { name: 'Alarm sound', exact: true })).not.toBeChecked();
-  await page.getByRole('textbox', { name: 'Timer label' }).fill('Tea');
-  await page.getByRole('button', { name: 'OK', exact: true }).click();
+  await page.getByRole('textbox', { name: 'Timer name' }).fill('Tea');
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Start Tea', exact: true })).toBeVisible();
 });
 
 test('validates labels and zero durations; cancel does not save', async ({ page }) => {
   await page.getByRole('button', { name: 'Add timer', exact: true }).click();
-  await page.getByRole('button', { name: 'OK', exact: true }).click();
-  await expect(page.getByRole('alert')).toHaveText('Label required.');
-  await page.getByRole('textbox', { name: 'Timer label' }).fill('Invalid');
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(page.getByRole('alert')).toHaveText('Enter a timer name.');
+  await page.getByRole('textbox', { name: 'Timer name' }).fill('Invalid');
   await page.getByRole('button', { name: 'Clear time', exact: true }).click();
-  await page.getByRole('button', { name: 'OK', exact: true }).click();
-  await expect(page.getByRole('alert')).toContainText('greater than zero');
-  await page.getByRole('button', { name: 'CANCEL', exact: true }).click();
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(page.getByRole('alert')).toContainText('above zero');
+  await page.getByRole('button', { name: 'Cancel', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Start Invalid', exact: true })).toHaveCount(0);
 });
 
@@ -140,7 +140,7 @@ test('time controls support swipes, wrapping, taps, and direct input', async ({ 
   await page.getByRole('button', { name: 'Decrease seconds', exact: true }).click();
   await expect(seconds).toHaveValue('20');
   await page.getByRole('tab', { name: 'Tone', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'OK', exact: true })).toBeInViewport();
+  await expect(page.getByRole('button', { name: 'Save', exact: true })).toBeInViewport();
 });
 
 test('simultaneous alarms dismiss independently and leave other countdowns running', async ({ page }) => {
@@ -153,12 +153,12 @@ test('simultaneous alarms dismiss independently and leave other countdowns runni
   await page.getByRole('button', { name: 'Start First alarm', exact: true }).click();
   await page.getByRole('button', { name: 'Start Second alarm', exact: true }).click();
   await page.clock.fastForward(2000);
-  await expect(page.getByRole('button', { name: 'Stop First alarm', exact: true })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Stop Second alarm', exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'Stop First alarm', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Stop First alarm', exact: true })).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'Stop Second alarm', exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'Stop Second alarm', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Stop alarm for First alarm', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Stop alarm for Second alarm', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Stop alarm for First alarm', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Stop alarm for First alarm', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Stop alarm for Second alarm', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Stop alarm for Second alarm', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Timer finished', exact: true })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Pause long rest', exact: true })).toBeVisible();
   await expect(page.getByTestId('countdown-sample-1')).toHaveText('02:58');
@@ -282,18 +282,19 @@ test('reset remains available at later lap boundaries and disappears once finish
   await expect(page.getByRole('button', { name: 'Reset Laps', exact: true })).toHaveCount(0);
   await page.getByRole('button', { name: 'Resume Laps', exact: true }).click();
   await page.clock.fastForward(2000);
-  await page.getByRole('button', { name: 'Stop Laps', exact: true }).click();
+  await page.getByRole('button', { name: 'Stop alarm for Laps', exact: true }).click();
   await expect(label).toContainText('00:02');
   await expect(label.getByLabel('Round 2 of 2', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Pause Laps', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Reset Laps', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Resume Laps', exact: true }).click();
   await page.clock.fastForward(2000);
-  await page.getByRole('button', { name: 'Stop Laps', exact: true }).click();
-  // A finished timer is back at its full duration and first round: nothing is left to reset.
+  await page.getByRole('button', { name: 'Stop alarm for Laps', exact: true }).click();
+  // A finished timer is back at its full duration and says so: nothing is left to reset.
   await expect(page.getByRole('button', { name: 'Restart Laps', exact: true })).toBeVisible();
   await expect(label).toContainText('00:02');
-  await expect(label.getByLabel('Round 1 of 2', { exact: true })).toBeVisible();
+  await expect(label).toContainText('Finished');
+  await expect(label.getByLabel(/^Round /)).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Reset Laps', exact: true })).toHaveCount(0);
   await page.getByRole('button', { name: 'Options for Laps', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Edit timer', exact: true })).toBeVisible();
@@ -304,7 +305,7 @@ test('running timer and reset button fit a narrow phone', async ({ page }, info)
   await page.setViewportSize({ width: 320, height: 568 });
   await page.getByRole('button', { name: 'Edit rest', exact: true }).click();
   await page.getByRole('textbox', { name: 'Hours', exact: true }).fill('99');
-  await page.getByRole('button', { name: 'OK', exact: true }).click();
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
   await page.getByRole('button', { name: 'Start rest', exact: true }).click();
   const button = page.getByRole('button', { name: 'Reset rest', exact: true });
   await expect(button).toBeInViewport();
@@ -321,13 +322,13 @@ test('repeats exactly the requested rounds and can restart', async ({ page }, in
   await createTimer(page, 'Round', 2, 3);
   await page.getByRole('button', { name: 'Start Round', exact: true }).click();
   await page.clock.fastForward(2100);
-  await page.getByRole('button', { name: 'Stop Round', exact: true }).click();
+  await page.getByRole('button', { name: 'Stop alarm for Round', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Edit Round', exact: true }).getByLabel('Round 2 of 3', { exact: true })).toBeVisible();
   await page.clock.fastForward(2100);
-  await page.getByRole('button', { name: 'Stop Round', exact: true }).click();
+  await page.getByRole('button', { name: 'Stop alarm for Round', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Edit Round', exact: true }).getByLabel('Round 3 of 3', { exact: true })).toBeVisible();
   await page.clock.fastForward(2100);
-  await page.getByRole('button', { name: 'Stop Round', exact: true }).click();
+  await page.getByRole('button', { name: 'Stop alarm for Round', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Restart Round', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Edit Round', exact: true })).toContainText('00:02');
   await capture(page, info, 'completed-timer.png');
@@ -352,13 +353,13 @@ test('completion loops real audio until Stop, restores duration, and respects mu
   await createTimer(page, 'Sound', 1);
   await page.getByRole('button', { name: 'Start Sound', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Timer finished', exact: true })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Stop Sound', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Stop alarm for Sound', exact: true })).toBeVisible();
   await expect.poll(() => page.evaluate(() => Number(document.documentElement.dataset.alarmPlays || 0))).toBeGreaterThan(0);
   expect(await page.evaluate(() => document.documentElement.dataset.alarmLoop)).toBe('true');
   // The one-second countdown and short WAV have both ended; the alarm must not.
   await page.waitForTimeout(3500);
   expect(await page.evaluate(() => Reflect.get(window, 'alarmPlaying'))).toBe(true);
-  await page.getByRole('button', { name: 'Stop Sound', exact: true }).click();
+  await page.getByRole('button', { name: 'Stop alarm for Sound', exact: true }).click();
   await expect.poll(() => page.evaluate(() => Reflect.get(window, 'alarmPlaying'))).toBe(false);
   await expect(page.getByRole('button', { name: 'Edit Sound', exact: true })).toContainText('00:01');
   await expect(page.getByRole('button', { name: 'Restart Sound', exact: true })).toBeVisible();
@@ -366,10 +367,10 @@ test('completion loops real audio until Stop, restores duration, and respects mu
   await page.getByRole('button', { name: 'Edit Sound', exact: true }).click();
   await page.getByRole('tab', { name: 'Tone', exact: true }).click();
   await page.getByRole('switch', { name: 'Alarm sound', exact: true }).click();
-  await page.getByRole('button', { name: 'OK', exact: true }).click();
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
   const before = await page.evaluate(() => Number(document.documentElement.dataset.alarmPlays || 0));
   await page.getByRole('button', { name: 'Start Sound', exact: true }).click();
-  await page.getByRole('button', { name: 'Stop Sound', exact: true }).click();
+  await page.getByRole('button', { name: 'Stop alarm for Sound', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Restart Sound', exact: true })).toBeVisible();
   expect(await page.evaluate(() => Number(document.documentElement.dataset.alarmPlays || 0))).toBe(before);
 });
@@ -388,7 +389,7 @@ test('hidden but unsuspended browser tabs still attempt alarms', async ({ page }
     Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'hidden' });
     document.dispatchEvent(new Event('visibilitychange'));
   });
-  await page.getByRole('button', { name: 'Stop Background', exact: true }).click();
+  await page.getByRole('button', { name: 'Stop alarm for Background', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Restart Background', exact: true })).toBeVisible();
   await expect.poll(() => page.evaluate(() => document.documentElement.dataset.hiddenAlarm)).toBe('attempted');
 });
@@ -415,11 +416,11 @@ test('reorder, duplicate, and delete persist', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'Start short rest copy', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Options for short rest copy', exact: true }).click();
   await page.getByRole('button', { name: 'Delete timer', exact: true }).click();
-  await page.getByRole('button', { name: 'CANCEL', exact: true }).click();
+  await page.getByRole('button', { name: 'Cancel', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Start short rest copy', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Options for short rest copy', exact: true }).click();
   await page.getByRole('button', { name: 'Delete timer', exact: true }).click();
-  await page.getByRole('button', { name: 'DELETE', exact: true }).click();
+  await page.getByRole('button', { name: 'Delete', exact: true }).click();
   await page.reload();
   await expect(page.getByRole('button', { name: 'Start short rest copy', exact: true })).toHaveCount(0);
 });
@@ -441,8 +442,8 @@ test('reordering is offered only when there are at least two timers', async ({ p
   await expect(page.getByRole('button', { name: 'Reorder timers', exact: true })).toHaveCount(0);
   await page.getByRole('button', { name: 'Close dialog', exact: true }).click();
   await page.getByRole('button', { name: 'New timer', exact: true }).click();
-  await page.getByRole('textbox', { name: 'Timer label' }).fill('Only');
-  await page.getByRole('button', { name: 'OK', exact: true }).click();
+  await page.getByRole('textbox', { name: 'Timer name' }).fill('Only');
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
   await expect(page.getByText('No timers yet', { exact: true })).toHaveCount(0);
   await page.getByRole('button', { name: 'Options for Only', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Duplicate timer', exact: true })).toBeVisible();
@@ -504,18 +505,20 @@ test('an intermediate round is not announced as a finished timer', async ({ page
   await page.clock.fastForward(2100);
   await expect(page.getByRole('heading', { name: 'Round complete', exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Timer finished', exact: true })).toHaveCount(0);
-  await page.getByRole('button', { name: 'Stop Rounds', exact: true }).click();
+  await page.getByRole('button', { name: 'Stop alarm for Rounds', exact: true }).click();
   await page.clock.fastForward(2100);
   await expect(page.getByRole('heading', { name: 'Timer finished', exact: true })).toBeVisible();
 });
 
-test('idle timers show no fraction; active ones show tenths', async ({ page }) => {
+test('idle timers show no fraction; active ones show tenths and paused ones say so', async ({ page }) => {
   await page.clock.install();
   const row = page.getByRole('button', { name: 'Edit rest', exact: true });
-  await expect(row).toHaveText('rest01:301/3');
+  await expect(row).toHaveText('rest1/301:30');
   await page.getByRole('button', { name: 'Start rest', exact: true }).click();
   await page.clock.fastForward(500);
-  await expect(row).toContainText(/01:29\.\d1\/3/);
+  await expect(row).toHaveText(/^rest1\/301:29\.\d$/);
+  await page.getByRole('button', { name: 'Pause rest', exact: true }).click();
+  await expect(row).toHaveText(/^restPaused1\/301:29\.\d$/);
 });
 
 test('corrupt saved data is preserved', async ({ page }) => {
@@ -532,9 +535,9 @@ test('corrupt saved data is preserved', async ({ page }) => {
 test('small phone editor and hour timers fit', async ({ page }, info) => {
   await page.setViewportSize({ width: 320, height: 568 });
   await page.getByRole('button', { name: 'Add timer', exact: true }).click();
-  await page.getByRole('textbox', { name: 'Timer label' }).fill('Long timer');
+  await page.getByRole('textbox', { name: 'Timer name' }).fill('Long timer');
   await page.getByRole('textbox', { name: 'Hours', exact: true }).fill('99');
-  await page.getByRole('button', { name: 'OK', exact: true }).click();
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
   const timer = page.getByRole('button', { name: 'Edit Long timer', exact: true });
   await timer.scrollIntoViewIfNeeded();
   await expect(timer).toContainText('99:01:00');
@@ -542,7 +545,7 @@ test('small phone editor and hour timers fit', async ({ page }, info) => {
   expect(dimensions.scrollWidth).toBeLessThanOrEqual(dimensions.width);
   await timer.click();
   await page.getByRole('tab', { name: 'Tone', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'OK', exact: true })).toBeInViewport();
+  await expect(page.getByRole('button', { name: 'Save', exact: true })).toBeInViewport();
   await capture(page, info, 'small-phone-editor.png');
-  await page.getByRole('button', { name: 'CANCEL', exact: true }).click();
+  await page.getByRole('button', { name: 'Cancel', exact: true }).click();
 });

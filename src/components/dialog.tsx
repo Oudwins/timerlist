@@ -1,14 +1,16 @@
 import type { ReactNode } from 'react';
 import { Modal, Pressable, ScrollView, Text, View } from 'react-native';
+import { useReducedMotion } from 'react-native-reanimated';
 
 import { IconButton } from './controls';
 
 export function Dialog({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
-  return <Modal visible transparent animationType="fade" onRequestClose={onClose} statusBarTranslucent>
+  const reduceMotion = useReducedMotion();
+  return <Modal visible transparent animationType={reduceMotion ? 'none' : 'fade'} onRequestClose={onClose} statusBarTranslucent>
     <View className="flex-1 items-center justify-center bg-black/65 px-5">
       <Pressable accessibilityLabel="Close dialog" onPress={onClose} className="absolute inset-0" />
       <View accessibilityViewIsModal className="max-h-[90%] w-full max-w-[430px] rounded-3xl border border-line bg-surface p-6">
-        <View className="mb-4 flex-row items-center justify-between gap-2"><Text accessibilityRole="header" className="flex-1 font-body text-xl text-cream">{title}</Text><IconButton icon="close" label="Close dialog" onPress={onClose} /></View>
+        <View className="mb-2 flex-row items-center justify-between gap-2"><Text accessibilityRole="header" className="flex-1 font-body text-xl text-cream">{title}</Text><IconButton icon="close" label="Close dialog" onPress={onClose} className="-mr-3" /></View>
         <ScrollView className="-mx-4 -my-1 shrink" contentContainerClassName="px-4 py-1" showsVerticalScrollIndicator={false}>{children}</ScrollView>
       </View>
     </View>

@@ -5,7 +5,7 @@ export const palette = {
   line: '#4B433E',
   text: '#F5F2EF',
   muted: '#BDB8B3',
-  faint: '#716C67',
+  faint: '#918A83',
   orange: '#FF5722',
   ink: '#261B15',
   danger: '#F3978C',
@@ -23,5 +23,7 @@ function luminance(color: string) {
 export function onColor(color: string) {
   const background = luminance(color);
   const contrast = (foreground: string) => (Math.max(background, luminance(foreground)) + 0.05) / (Math.min(background, luminance(foreground)) + 0.05);
-  return contrast(palette.ink) > contrast(palette.text) ? palette.ink : palette.text;
+  const best = contrast(palette.ink) > contrast(palette.text) ? palette.ink : palette.text;
+  // A few mid-tone colours fall short with both; plain black still reads on them.
+  return contrast(best) >= 4.5 ? best : '#000000';
 }

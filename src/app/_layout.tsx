@@ -13,6 +13,8 @@ export default function RootLayout() {
   const [loaded, error] = useFonts({
     DMSans: require('../../assets/fonts/DMSans.ttf'),
     DMSansMedium: require('../../assets/fonts/DMSansMedium.ttf'),
+    // DM Sans with equal-width digits, so countdowns do not shift as they tick.
+    DMSansTabular: require('../../assets/fonts/DMSansTabular.ttf'),
     DMMono: require('../../assets/fonts/DMMono.ttf'),
   });
   useEffect(() => { if (loaded || error) SplashScreen.hide(); }, [loaded, error]);
