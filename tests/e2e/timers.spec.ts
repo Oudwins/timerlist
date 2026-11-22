@@ -526,6 +526,23 @@ test('idle timers show no fraction; active ones show tenths and paused ones say 
   await expect(row).toHaveText(/^restPaused1\/301:29\.\d$/);
 });
 
+test('the progress ring moves smoothly between ticks and holds while paused', async ({ page }) => {
+  await page.getByRole('button', { name: 'Start long rest', exact: true }).click();
+  const ring = page.getByTestId('timer-sample-1').locator('svg circle').nth(1);
+  await expect(ring).toBeVisible();
+  // The list re-renders ten times a second; the ring must update far more often than that.
+  const distinct = await ring.evaluate(circle => new Promise<number>(resolve => {
+    const values = new Set<string | null>(); const start = performance.now();
+    const sample = () => { values.add(circle.getAttribute('stroke-dashoffset')); if (performance.now() - start < 1000) requestAnimationFrame(sample); else resolve(values.size); };
+    requestAnimationFrame(sample);
+  }));
+  expect(distinct).toBeGreaterThan(20);
+  await page.getByRole('button', { name: 'Pause long rest', exact: true }).click();
+  const paused = await ring.getAttribute('stroke-dashoffset');
+  await page.waitForTimeout(300);
+  expect(await ring.getAttribute('stroke-dashoffset')).toBe(paused);
+});
+
 test('corrupt saved data is preserved', async ({ page }) => {
   await page.evaluate(() => localStorage.setItem('timerlist:timers', 'not-json'));
   await page.reload();
