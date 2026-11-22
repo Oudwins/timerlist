@@ -130,6 +130,6 @@ test('reset is offered only once there is progress to discard', () => {
   assert.equal(canReset(startTimer(timer, 0), 1000), true);
   assert.equal(canReset(pauseTimer(startTimer(timer, 0), 1000), 0), true);
   assert.equal(canReset(advanceTimer(startTimer(timer, 0), 5000), 5000), true);
-  assert.equal(canReset(advanceTimer(startTimer(timer, 0), 10000), 0), true);
+  assert.equal(canReset(advanceTimer(startTimer(timer, 0), 10000), 0), false);
   assert.equal(canReset(resetTimer(advanceTimer(startTimer(timer, 0), 10000)), 0), false);
 });

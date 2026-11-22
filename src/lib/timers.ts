@@ -73,8 +73,9 @@ export function remainingTime(timer: Timer, now: number) {
     : timer.remaining;
 }
 
+// A finished timer is already back at its full duration, so there is nothing left to reset.
 export function canReset(timer: Timer, now: number) {
-  return remainingTime(timer, now) !== timer.duration * 1000 || timer.completed > 0;
+  return timer.status !== 'finished' && (remainingTime(timer, now) !== timer.duration * 1000 || timer.completed > 0);
 }
 
 // Deadlines, rather than interval ticks, are the source of truth. This also

@@ -32,7 +32,6 @@ function TimerListScreen() {
   const [reordering, setReordering] = useState(false);
   const [menuId, setMenuId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<Timer | null>(null);
-  const [sorting, setSorting] = useState(false);
   const [settings, setSettings] = useState(false);
   // Ordering needs at least two timers; every entry point follows this one rule.
   const canOrder = app.ready && app.timers.length > 1;
@@ -48,8 +47,7 @@ function TimerListScreen() {
         <IconButton icon="menu" label="Menu" onPress={() => setSettings(true)} />
         <Text accessibilityRole="header" className="ml-2 flex-1 font-medium text-[22px] text-cream">Timer list</Text>
         {arranging ? <IconButton icon="check" label="Done reordering" onPress={() => setReordering(false)} /> : <>
-          {canOrder && <IconButton icon="sort" label="Sort timers" onPress={() => setSorting(true)} />}
-          <IconButton icon="addTimer" label="Add timer" disabled={!app.ready || !app.storageSafe} onPress={() => setEditor('new')} />
+          <IconButton icon="plus" label="Add timer" color={palette.text} disabled={!app.ready || !app.storageSafe} onPress={() => setEditor('new')} />
         </>}
       </View>
       {!app.ready ? <View className="flex-1" /> : app.timers.length === 0 ? <View className="flex-1 items-center justify-center gap-5 px-8">
@@ -68,7 +66,6 @@ function TimerListScreen() {
       <MenuItem icon="trash" danger onPress={() => { setDeleting(menu); setMenuId(null); }}>Delete timer</MenuItem>
     </Dialog>}
     {deleting && <Dialog title="Delete timer?" onClose={() => setDeleting(null)}><Text className="mb-4 font-body text-base text-muted">{deleting.label}</Text><View className="flex-row justify-end gap-4"><Pressable accessibilityRole="button" onPress={() => setDeleting(null)} className="min-h-12 justify-center rounded-xl px-3 hover:bg-white/5 active:bg-white/10"><Text className="font-medium text-sm text-cream">CANCEL</Text></Pressable><Pressable accessibilityRole="button" onPress={() => { app.remove(deleting.id); setDeleting(null); }} className="min-h-12 justify-center rounded-xl px-3 hover:bg-white/5 active:bg-white/10"><Text className="font-medium text-sm text-danger">DELETE</Text></Pressable></View></Dialog>}
-    {sorting && canOrder && <Dialog title="Sort" onClose={() => setSorting(false)}><MenuItem icon="sort" onPress={() => { app.sort('label'); setSorting(false); }}>Label · A to Z</MenuItem><MenuItem icon="clock" onPress={() => { app.sort('duration'); setSorting(false); }}>Duration · shortest first</MenuItem><MenuItem icon="grip" onPress={() => { setReordering(true); setSorting(false); }}>Reorder timers</MenuItem></Dialog>}
     {settings && <Dialog title="Menu" onClose={() => setSettings(false)}>
       {canOrder && <MenuItem icon="grip" onPress={() => { setReordering(true); setSettings(false); }}>Reorder timers</MenuItem>}
       <MenuItem icon="volume" onPress={() => { app.alarm.unlock(); void app.alarm.play('beep'); }}>Test alarm sound</MenuItem>

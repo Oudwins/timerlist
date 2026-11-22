@@ -24,7 +24,9 @@ export const TimerRow = memo(function TimerRow({ timer, now, index, total, arran
   const remaining = remainingTime(timer, now);
   const resettable = canReset(timer, now);
   const circumference = 2 * Math.PI * 32;
-  const progress = timer.status === 'finished' ? 1 : Math.min(1, remaining / (timer.duration * 1000));
+  const progress = Math.min(1, remaining / (timer.duration * 1000));
+  // A finished timer is ready to go again, so it reads as round one.
+  const round = timer.status === 'finished' ? 1 : Math.min(timer.completed + 1, timer.repeats);
   return <View testID={`timer-${timer.id}`} className="-mx-4 min-h-[104px] flex-row items-center gap-3 px-4 py-3">
     {arranging ? <View className="w-7" /> : <Pressable accessibilityRole="button" accessibilityLabel={`Options for ${timer.label}`} onPress={onMore} className="-mx-2 h-14 w-11 items-center justify-center rounded-xl hover:bg-white/5 active:bg-white/10">
       <Icon name="more" size={18} color={palette.faint} />
@@ -32,7 +34,7 @@ export const TimerRow = memo(function TimerRow({ timer, now, index, total, arran
     <Pressable accessibilityRole="button" accessibilityLabel={`${running ? 'Pause' : timer.status === 'finished' ? 'Restart' : timer.status === 'paused' ? 'Resume' : 'Start'} ${timer.label}`} onPress={onToggle} className="h-[72px] w-[72px] items-center justify-center rounded-full active:opacity-70">
       <View className="absolute inset-0"><Svg width={72} height={72} viewBox="0 0 72 72">
         <Circle cx={36} cy={36} r={32} fill="none" stroke={palette.line} strokeWidth={4} />
-        {timer.status !== 'idle' && <Circle cx={36} cy={36} r={32} fill="none" stroke={timer.color} strokeOpacity={running ? 1 : 0.45} strokeWidth={4} strokeLinecap="round" strokeDasharray={circumference} strokeDashoffset={circumference * (1 - progress)} rotation={-90} origin="36, 36" />}
+        {active && <Circle cx={36} cy={36} r={32} fill="none" stroke={timer.color} strokeOpacity={running ? 1 : 0.45} strokeWidth={4} strokeLinecap="round" strokeDasharray={circumference} strokeDashoffset={circumference * (1 - progress)} rotation={-90} origin="36, 36" />}
       </Svg></View>
       <View className="h-[52px] w-[52px] items-center justify-center rounded-full bg-raised"><Icon name={running ? 'pause' : 'play'} size={25} color={running ? timer.color : palette.muted} /></View>
     </Pressable>
@@ -42,7 +44,7 @@ export const TimerRow = memo(function TimerRow({ timer, now, index, total, arran
         <View testID={`countdown-${timer.id}`} className="flex-row"><Digits size={narrow ? 22 : timer.duration >= 3600 || arranging ? 24 : 31} color={palette.text}>{formatTime(Math.floor(remaining / 1000) * 1000)}</Digits></View>
         {active && !arranging && !(narrow && timer.duration >= 3600) && <Digits size={narrow ? 14 : 20} color={palette.muted}>{`.${Math.floor(remaining % 1000 / 100)}`}</Digits>}
       </View>
-      {timer.repeats > 1 && <Text accessibilityLabel={`Round ${Math.min(timer.completed + 1, timer.repeats)} of ${timer.repeats}`} className="font-body text-xs text-muted">{Math.min(timer.completed + 1, timer.repeats)}/{timer.repeats}</Text>}
+      {timer.repeats > 1 && <Text accessibilityLabel={`Round ${round} of ${timer.repeats}`} className="font-body text-xs text-muted">{round}/{timer.repeats}</Text>}
     </Pressable>
     {!arranging && <View className="h-11 w-11" />}
     {resettable && !arranging && <Pressable accessibilityRole="button" accessibilityLabel={`Reset ${timer.label}`} onPress={onReset} className="group absolute right-1.5 top-1/2 h-16 w-16 -translate-y-1/2 items-center justify-center">

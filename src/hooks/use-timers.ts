@@ -165,6 +165,5 @@ export function useTimers() {
       if (timer) commit([...current.current, createTimer({ ...timer, label: `${timer.label} copy` })]);
     },
     move: (id: string, direction: -1 | 1) => commit(moveTimer(current.current, id, direction)),
-    sort: (by: 'label' | 'duration') => commit([...current.current].sort((a, b) => by === 'label' ? a.label.localeCompare(b.label) : a.duration - b.duration)),
   };
 }
